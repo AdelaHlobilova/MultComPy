@@ -1,5 +1,5 @@
 # MultComPy
-Library containing statistical descriptors for assessment of digitized images of multiphase composite materials
+Library containing statistical descriptors for assessment of digitized images of multiphase composite materials.
 
 MultComPy library contains a set of statistical descriptors (i.e. n-point correlation functions) used to assess and evaluate digitized images of multiphase composite materials. Unlike other libraries available (PoreSpy), the main focus rests on delivering a concise collection of functions that are applicable to evaluate multiphase digitized images obtained e.g. from computed tomography, rather than on generating artificial images or altering the input images. As for its primary application, this library was initially developed for the assessment of the spatial configuration of the various solid phases occurring within a hydrating cement paste microstructure.
 
