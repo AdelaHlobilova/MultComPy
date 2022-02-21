@@ -6,19 +6,19 @@ MultComPy library contains a set of statistical descriptors (i.e. n-point correl
 MultComPy relies on additional Python libraries like Numpy and SciPy, however, the main functions are implemented directly and optimized for evaluation speed. The most time-demanding functions are concurrently implemented both in Python and in C and allow for a mutual comparison.
 
 ## Overview of implemented functions:
-- two-point probability function - allows to evaluate auto-/cross-correlation using brute force or discrete Fourier transform methods for ND media
+- **two-point probability function** - allows to evaluate auto-/cross-correlation using brute force or discrete Fourier transform methods for ND media
 
-- two-point cluster function - allows to evaluate the probability, that two randomly chosen points (pixels or voxels) x1 and x2 belong to the same cluster of the selected phase; method implemented using discrete Fourier transformation for ND media
+- **two-point cluster function** - allows to evaluate the probability, that two randomly chosen points (pixels or voxels) x1 and x2 belong to the same cluster of the selected phase; method implemented using discrete Fourier transformation for ND media
 
-- chord length density - allows evaluating the isotropy of the material by characterizing orthogonal path length along with the principal directions for 2D and 3D media
+- **chord length density** - allows evaluating the isotropy of the material by characterizing orthogonal path length along with the principal directions for 2D and 3D media
 
-- lineal path - allows to evaluate the probability that a randomly-thrown line segment lies in the same phase; implemented by brute force method in both Python and C for 2D and 3D media
+- **lineal path** - allows to evaluate the probability that a randomly-thrown line segment lies in the same phase; implemented by brute force method in both Python and C for 2D and 3D media
 
-- real surface of particles - allows quantifying the area (voxel count) of selected inclusion by stereological approach, extrapolation, and differentiation of the two-point probability function for ND media
+- **real surface of particles** - allows quantifying the area (voxel count) of selected inclusion by stereological approach, extrapolation, and differentiation of the two-point probability function for ND media
 
-- shortest distance from hydrate to the clinker surface for 2D and 3D media
+- **shortest distance from hydrate to the clinker surface** for 2D and 3D media
 
-- particle quantification - evaluates the specific surface, volume, and an equivalent spherical diameter for a selected phase
+- **particle quantification** - evaluates the specific surface, volume, and an equivalent spherical diameter for a selected phase
 
 
 <!-- Helper functions:
