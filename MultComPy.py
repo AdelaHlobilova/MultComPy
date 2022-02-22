@@ -2,14 +2,11 @@
 
 """
 Statistical descriptors and functions for image analysis.
-
 MultComPy (Multiphase composite in Python) contains functions for evaluating
 statistical descriptors using image analysis from realistic paste microstructures 
 obtained from computed microtomography.
-
 Created on Sun Feb 14 09:08:28 2021
 Last edit on Mon Feb 02 21:45 2022
-
 @authors:   Adela Hlobilova, adela.hlobilova@gmail.com
             Michal Hlobil, michalhlobil@seznam.cz
 """
@@ -27,6 +24,7 @@ import sys
 import matplotlib.pyplot as plt
 import os
 import pathlib
+import platform
 
 ##############################################################################
 
@@ -34,18 +32,15 @@ import pathlib
 def my_shift(x):
     """
     Shift the zero-frequency component to the centre of the spectrum.
-
     This function works similarly to the fftshift from numpy.fft, but it
     enlarges the descriptor from [M,N,O] to [2*M-1,2*N-1,2*O-1]. The maximum
     value of the descriptor (volume fraction of the selected phase) is shifted
     to the middle of the descriptor instead of x[0,0,0] as is in the original
     variable x.
-
     Parameters
     ----------
     x : float NumPy array
         Input array. Contains only half-space of the statistical descriptor.
-
     Returns
     -------
     retval : float NumPy array
@@ -67,7 +62,6 @@ def my_shift(x):
 def S2_direct_computation(img_array1, img_array2, larger=True):
     """
     Two-point probability function by brute force evaluation.
-
     Two-point probability function (correlation function) represents
     a probability, that two randomly chosen points x1 and x2 (pixels for 2D,
     voxels for 3D) belong to the prescribed phase. This implementation works
@@ -78,7 +72,6 @@ def S2_direct_computation(img_array1, img_array2, larger=True):
     function. The prescribed phase is always True (logical) for both images.
     This implementation is brute force, therefore, it is slower than evaluation
     using Fast Fourier transformation.
-
     Parameters
     ----------
     img_array1 : Boolean NumPy array
@@ -101,7 +94,6 @@ def S2_direct_computation(img_array1, img_array2, larger=True):
         is set to True, the S2_mat contains the whole statistical descriptor
         and the origin of the coordinate system, i.e. the one-point probability
         function, is positioned in the middle of the output.
-
     Returns
     -------
     S2_mat : float NumPy array
@@ -179,7 +171,6 @@ def S2_direct_computation(img_array1, img_array2, larger=True):
 def S2_Discrete_Fourier_transform(img_array1, img_array2, larger=True):
     """
     Two-point probability function evaluated by discrete Fourier transform.
-
     Two-point probability function (correlation function) represents
     a probability, that two randomly chosen points x1 and x2 (pixels for 2D,
     voxels for 3D) belong to the prescribed phase. This implementation works
@@ -190,7 +181,6 @@ def S2_Discrete_Fourier_transform(img_array1, img_array2, larger=True):
     The prescribed phase is always True (logical) for both images. This
     implementation uses Fast Fourier transformation, therefore, it is faster
     than evaluation using brute force (S2_direct_computation()).
-
     Parameters
     ----------
     img_array1 : Boolean NumPy array
@@ -213,7 +203,6 @@ def S2_Discrete_Fourier_transform(img_array1, img_array2, larger=True):
         is set to True, the S2_mat contains the whole statistical descriptor
         and the origin of the coordinate system, i.e. the one-point probability
         function, is positioned in the middle of the output.
-
     Returns
     -------
     S2_mat : float NumPy array
@@ -259,14 +248,12 @@ def S2_Discrete_Fourier_transform(img_array1, img_array2, larger=True):
 def transform_ND_to_1D(X, step=1, rmax="max", D=1, scale=0):
     """
     Matrix descriptor transformation into vector.
-
     Transforms matrix representation of the statistical descriptor S_mn(x1,x2)
     into S_mn(r), where r=|x1-x2|. For statistically isotropic media, the joint
     probability density function describing the stochastic process is
     rotationally invariant and, therefore, S_mn depends only on the distances
     between points x1 and x2. The transformation is provided by a sequential
     numerical curve integration for an identical perimeter r from 1 to rmax.
-
     Parameters
     ----------
     X : 2D or 3D float NumPy array
@@ -294,7 +281,6 @@ def transform_ND_to_1D(X, step=1, rmax="max", D=1, scale=0):
         and other values can also negative if the original value of the
         descriptor is lesser than S_mn(0)**2. If the scale is equal to 0,
         no scaling is provided. Default is 0.
-
     Returns
     -------
     X_vec_val : list containing 2 (in case D=1) or 3 numpy arrays
@@ -386,19 +372,16 @@ def transform_ND_to_1D(X, step=1, rmax="max", D=1, scale=0):
 def BW_morph_remove(img_array, phase):
     """
     Remove interior pixels to leave an outline of the shapes.
-
     This function removes interior pixels in the img_array to leave an outline
     of the shapes. It operates in an 8-connected neighbourhood. If only
     a 4-connected neighbourhood is necessary, comment on the third and the
     fourth condition in the inner if statement. The function gives identical
     output as img_file.filter(ImageFilter.FIND_EDGES) - the difference is in
     the output object.
-
     The alternative code is
         img_edges = img_file.filter(ImageFilter.FIND_EDGES)
         edges = np.array(img_edges)
     where img_file is a BW image
-
     Parameters
     ----------
     img_array : integer or Boolean (or possibly float) NumPy 2D array
@@ -406,7 +389,6 @@ def BW_morph_remove(img_array, phase):
     phase : integer or Boolean (or possibly float)
         A value corresponding to at least one element in img_array. This value
         could also be float if this float value appears in img_array.
-
     Returns
     -------
     edges : integer NumPy 2D array
@@ -438,10 +420,8 @@ def BW_morph_remove(img_array, phase):
 def find_edges(img_array, flag="dilate", it=1):
     """
     Edge detection of the input ND array using scipy.ndimage.
-
     The result is an array with the same dimensions containing True on edges
     pixels or voxels and False elsewhere.
-
     Parameters
     ----------
     img_array : Boolean numpy array
@@ -459,7 +439,6 @@ def find_edges(img_array, flag="dilate", it=1):
         If the number of iterations is lesser than 1, the dilation is repeated
         until the result does not change anymore. Only an integer of iterations
         is accepted.
-
     Returns
     -------
     edges : Boolean NumPy array
@@ -467,12 +446,15 @@ def find_edges(img_array, flag="dilate", it=1):
     dilate / erode : Boolean NumPy array
         Erosion or dilation of the input by the structuring element.
     """
-    # dim = img_array.ndim
-    # struct = spim.generate_binary_structure(dim, dim)
-    struct = np.array([[[False,True,False],[True,True,True],[False,True,False]],
-           [[True,True,True],[True,True,True],[True,True,True]],
-           [[False,True,False],[True,True,True],[False,True,False]]])
-    
+    dim = img_array.ndim
+    if dim == 2:
+        struct = spim.generate_binary_structure(dim, dim)
+    elif dim == 3:
+        # struct = spim.generate_binary_structure(dim, dim)
+        struct = np.array([[[False,True,False],[True,True,True],[False,True,False]],
+               [[True,True,True],[True,True,True],[True,True,True]],
+               [[False,True,False],[True,True,True],[False,True,False]]])
+        
 
     if flag == "erode":
         erode = spim.binary_erosion(img_array, struct, iterations=it)
@@ -489,18 +471,15 @@ def find_edges(img_array, flag="dilate", it=1):
 def real_surface_stereological_approach(im):
     """
     Interface area by stereological approach.
-
     Parameters
     ----------
     im: Boolean NumPy array
         Input array. True denotes the selected phase for which the algorithm
         evaluates a real surface area.
-
     Returns
     -------
     ssa: float
         Real surface area in [vox^2].
-
     References
     ----------
     [1] Torquato, S. (2002). Random Heterogeneous Materials:
@@ -545,7 +524,6 @@ def real_surface_extrapolation(im, max_iter=5):
     
     NOTE: to obtain specific surface area, rsa needs to be divided by product 
     of ROI size (= ROI volume).
-
     (According to [1], the specific surface is a one-point correlation function
     and is proportional to the probability of finding a point in the dilated
     region around the spheres.)
@@ -560,7 +538,6 @@ def real_surface_extrapolation(im, max_iter=5):
     particles since the particle morphology is seriously distrupded by adding 
     the voxel-thick delated region around the particle. As such, the real area
     obtained by this method may be negative for small particles!
-
     Parameters
     ----------
     im : Boolean NumPy array
@@ -570,12 +547,10 @@ def real_surface_extrapolation(im, max_iter=5):
         The number of iterations for different DeltaR. The initial value of
         DeltaR is 1, and it increases with 1. Max_iter is the maximum DeltaR.
         Default is 5 (which means 5 iterations with DeltaR = [1,2,3,4,5]).
-
     Returns
     -------
     rsa : float
         Real surface area.
-
     References
     ----------
     [1] Torquato, S. (2002). Random Heterogeneous Materials:
@@ -608,14 +583,12 @@ def real_surface_extrapolation(im, max_iter=5):
 def real_surface_differentiation_S2(img_array):
     """
     Real surface area by differentiation of the autocorrelation function.
-
     (According to [1] (the third equation in (2.5)), the specific surface area
     is equal to a proportion of the differentiation of the auto-correlation
     function in r=0, where r is the length of the segment that starts and ends
     in the same phase. Since the medium is discretized, also the
     auto-correlation function is discrete and only the first and the second
     element from S2() contributes to the specific surface area.)
-
     NOTE: I found in a literature (but I cannot find the original print) that
     specific surface area for ND should be evaluated as
         ssa = (S2_[0][0] - S2_[0][1])*2*dim
@@ -625,17 +598,14 @@ def real_surface_differentiation_S2(img_array):
     surface area,
         ssa = (S2_[0][0] - S2_[0][1])*4
     works well.
-
     Parameters
     ----------
     img_array : Boolean NumPy ND array
         Input array of the medium.
-
     Returns
     -------
     rsa : float
         Real surface area.
-
     References
     ----------
     [1]  David A. Coker and Salvatore Torquato, "Extraction of morphological
@@ -663,13 +633,11 @@ def real_surface_differentiation_S2(img_array):
 def C2_Discrete_Fourier_transform(img_array, larger=True):
     """
     Two-point cluster function evaluated by Discrete Fourier Transformation.
-
     Two-point cluster function C2() is a probability, that two randomly chosen
     points (pixels or voxels) x1 and x2 belong to the same cluster of the
     selected phase. This phase is always True in the input medium array
     img_array. Two points are in the same cluster if they can be connected
     within the same phase.
-
     Parameters
     ----------
     img_array : Boolean NumPy ND array
@@ -684,7 +652,6 @@ def C2_Discrete_Fourier_transform(img_array, larger=True):
         If larger is set to True, the C2_mat contains the whole statistical
         descriptor and the origin of the coordinate system, i.e. the one-point
         cluster function, is positioned in the middle of the output.
-
     Returns
     -------
     C2_mat : float NumPy ND array
@@ -718,7 +685,6 @@ def C2_Discrete_Fourier_transform(img_array, larger=True):
 def BresLineAlg(x0, y0, x1, y1):
     r"""
     2D Bressenham's line algorithm.
-
     The original algorithm works only for:
         1/ the octants, where the change in x is greater than the change in y,
            i.e. the growth of x is faster than y (variable is_steep is False,
@@ -735,7 +701,6 @@ def BresLineAlg(x0, y0, x1, y1):
         the steepness is checked and treated as the first step. If the
         steepness was examined second, octants 3, 4, 5 and 6 would have
         variable swap equal to False.
-
     Octants and their numbering are as follows:
                     \ 6 | 7 /
                      \  |  /
@@ -746,7 +711,6 @@ def BresLineAlg(x0, y0, x1, y1):
                     4 / | \ 1
                      /  |  \
                     / 3 | 2 \
-
     Parameters
     ----------
     x0 : int
@@ -757,7 +721,6 @@ def BresLineAlg(x0, y0, x1, y1):
         The end x coordination of the segment.
     y1 : int
         The end y coordination of the segment.
-
     Returns
     -------
     coords : list of tuples
@@ -808,10 +771,8 @@ def BresLineAlg(x0, y0, x1, y1):
 def Bresenham3D(x1, y1, z1, x2, y2, z2):
     """
     Bresenham’s Algorithm for 3-D Line Drawing.
-
     Overtaken from
     https://www.geeksforgeeks.org/bresenhams-algorithm-for-3-d-line-drawing/
-
     Parameters
     ----------
     x1 : int
@@ -826,7 +787,6 @@ def Bresenham3D(x1, y1, z1, x2, y2, z2):
         axis 1 - coordinate of point 2
     z2 : int
         axis 2 - coordinate of point 2
-
     Returns
     -------
     ListOfPoints : list
@@ -905,9 +865,7 @@ def Bresenham3D(x1, y1, z1, x2, y2, z2):
 def L2_generate_paths(row, col, imgrow, imgcol, step=1):
     """
     Generate paths via Bressenham's 2-D line algorithm.
-
     Helper function for the L2_direct_computation() function.
-
     Parameters
     ----------
     row : int
@@ -924,7 +882,6 @@ def L2_generate_paths(row, col, imgrow, imgcol, step=1):
         paths is skipped is determined by the step parameter, if the step is
         greater than 1, each step-th path is generated. The more paths skipped,
         the less accurate the lineal path function result is. The default is 1.
-
     Returns
     -------
     paths : list of tuples
@@ -972,9 +929,7 @@ def L2_generate_paths(row, col, imgrow, imgcol, step=1):
 def L2_generate_paths_3D(dep, row, col, imgdep, imgrow, imgcol, step=1):
     """
     Generate paths via Bressenham's line 3-D algorithm.
-
     Helper function for the L2_direct_computation_3D() function.
-
     Parameters
     ----------
     dep : int
@@ -995,7 +950,6 @@ def L2_generate_paths_3D(dep, row, col, imgdep, imgrow, imgcol, step=1):
         paths are skipped is determined by the step parameter, if the step is
         greater than 1, each step-th path is generated. The more paths skipped,
         the less accurate the lineal path function result is. The default is 1.
-
     Returns
     -------
     paths : list of tuples
@@ -1042,7 +996,6 @@ def L2_generate_paths_3D(dep, row, col, imgdep, imgrow, imgcol, step=1):
 def L2_direct_computation_2D(A, rowmax, colmax, phase=True, step=1):
     """
     Lineal path 2-D function by brute force algorithm.
-
     Lineal path function is a probability that a line segment lies in the same
     phase when randomly thrown into the microstructure [1]. First, all the
     paths are generated (by function L2_generate_paths). Since the lineal path
@@ -1066,7 +1019,6 @@ def L2_direct_computation_2D(A, rowmax, colmax, phase=True, step=1):
            image is copied 3 times horizontally and 2 times vertically)
     v1.2 - L2 descriptor is symmetric, this version is generating the whole
     descriptor, instead of its half
-
     Parameters
     ----------
     A : numpy 2D array
@@ -1085,12 +1037,10 @@ def L2_direct_computation_2D(A, rowmax, colmax, phase=True, step=1):
         paths are skipped is determined by the step parameter, if the step is
         greater than 1, each step-th path is generated. The more paths skipped,
         the less accurate the lineal path function result is. The default is 1.
-
     Returns
     -------
     L2_mat : numpy float array
         The lineal path matrix function.
-
     References
     ----------
     [1] Torquato, S. (2002). Random Heterogeneous Materials:
@@ -1143,7 +1093,6 @@ def L2_direct_computation_2D(A, rowmax, colmax, phase=True, step=1):
 def L2_direct_computation_3D(A, depmax, rowmax, colmax, phase=True, step=1):
     """
     Lineal path 3-D function by brute force algorithm.
-
     Lineal path function is a probability that a line segment lies in the same
     phase when randomly thrown into the microstructure [1]. First, all the
     paths are generated (by function L2_generate_paths). Since the lineal path
@@ -1159,7 +1108,6 @@ def L2_direct_computation_3D(A, depmax, rowmax, colmax, phase=True, step=1):
     is inspired by the Torquato algorithm (Random heterogeneous materials [1],
     pp. 291). The Lineal path algorithm translates all paths along with the
     medium.
-
     v0.0 - This algorithm generated the paths for all the pixels in the medium.
            This version was much slower but slightly more accurate than the
            next version.
@@ -1169,7 +1117,6 @@ def L2_direct_computation_3D(A, depmax, rowmax, colmax, phase=True, step=1):
     v1.2 - L2 descriptor is symmetric, this version is generating the whole
            descriptor, instead of its half.
     v2.0 - Computation for 3D images.
-
     Parameters
     ----------
     A : numpy 2D array
@@ -1193,12 +1140,10 @@ def L2_direct_computation_3D(A, depmax, rowmax, colmax, phase=True, step=1):
         paths are skipped is determined by the step parameter, if the step is
         greater than 1, each step-th path is generated. The more paths skipped,
         the less accurate the lineal path function result is. The default is 1.
-
     Returns
     -------
     L2_mat : numpy float array
         The lineal path matrix function.
-
     References
     ----------
     [1] Torquato, S. (2002). Random Heterogeneous Materials:
@@ -1272,7 +1217,6 @@ def L2_direct_computation_3D(A, depmax, rowmax, colmax, phase=True, step=1):
 def L2_direct_computation_dll(A, depmax, rowmax, colmax, phase=True, step=1):
     """
     Lineal path function computed by brute force in C precompiled code.
-
     Lineal path function is a probability that a line segment lies in the same
     phase when randomly thrown into the microstructure [1]. First, all the
     paths are generated (by function L2_generate_paths). Since the lineal path
@@ -1308,9 +1252,6 @@ def L2_direct_computation_dll(A, depmax, rowmax, colmax, phase=True, step=1):
         
     The created dll file has to be placed in the same folder as this module.
     
-    This version is tested on Windows, we are working on some slight changes for
-    path generation in Linux.
-
     Parameters
     ----------
     A : NumPy 2D array
@@ -1334,12 +1275,10 @@ def L2_direct_computation_dll(A, depmax, rowmax, colmax, phase=True, step=1):
         paths are skipped is determined by the step parameter, if the step is
         greater than 1, each step-th path is generated. The more paths skipped,
         the less accurate the lineal path function result is. The default is 1.
-
     Returns
     -------
     L2_mat : NumPy float array
         The lineal path matrix function.
-
     References
     ----------
     [1] Torquato, S. (2002). Random Heterogeneous Materials:
@@ -1349,9 +1288,16 @@ def L2_direct_computation_dll(A, depmax, rowmax, colmax, phase=True, step=1):
     reconstruction of random microstructures using accelerated lineal path
     function. Computational Materials Science, 122, 102-117.
     """
-    path = pathlib.Path(__file__).parent.resolve()
-
-    lineal_path_c_path = ctypes.util.find_library(path/("lineal_path_c"))
+    
+    if platform.system() == "Windows":
+        path = pathlib.Path(__file__).parent.resolve()
+        lineal_path_c_path = ctypes.util.find_library(path/("lineal_path_c"))
+    elif platform.system() == "Linux":
+        path= os.getcwd()
+        for root, dirs, files in os.walk(path):
+            for name in files:
+                if name.endswith(".dll") :
+                    lineal_path_c_path = ctypes.util.find_library("%s/%s" %(root, name))
 
     if not lineal_path_c_path:
         print("Unable to find the specified library.")
@@ -1429,7 +1375,6 @@ def L2_direct_computation_dll(A, depmax, rowmax, colmax, phase=True, step=1):
 def L2_direct_computation(A, maxsize, phase=True, step=1, method="py"):
     """
     Lineal path function computed by brute force.
-
     Lineal path function is a probability that a line segment lies in the same
     phase when randomly thrown into the microstructure [1]. First, all the
     paths are generated (by function L2_generate_paths). Since the lineal path
@@ -1456,7 +1401,6 @@ def L2_direct_computation(A, maxsize, phase=True, step=1, method="py"):
     v2.0 - Computation for 3D images.
     v3.0 - Rewritten to C, the code is compiled to *.dll and the *.dll is run
            by Python via this code.
-
     Parameters
     ----------
     A : NumPy 2D array
@@ -1483,12 +1427,10 @@ def L2_direct_computation(A, maxsize, phase=True, step=1, method="py"):
     method: "py" or "dll", optional
         Selection between python (py) or c (dll) evaluation. The default is
         "py".
-
     Returns
     -------
     L2_mat : NumPy float array
         The lineal path matrix function.
-
     """
     try:
         A.ndim == 2 or A.ndim == 3
@@ -1537,10 +1479,8 @@ def shortest_distance_from_hydrate_to_clinker_surface(A, clinker_phase,
                                                       num_in_batch=400):
     """
     Shortest distance from hydrate to the clinker surface.
-
     This function finds the shortest distance from each pixel or voxel of the
     hydrate phase to the clinker surface.
-
     Parameters
     ----------
     A : NumPy int array (2D or 3D)
@@ -1560,7 +1500,6 @@ def shortest_distance_from_hydrate_to_clinker_surface(A, clinker_phase,
         for the scipy.spatial.distance.cdist function, the algorithm divides
         the data into independent batches that are computed serial. The default
         is 400.
-
     Returns
     -------
     min_dists : float array (with the length equal to the number of hydrates
@@ -1631,7 +1570,6 @@ def shortest_distance_from_hydrate_to_clinker_surface(A, clinker_phase,
 def chordLengthDensityFunction_orthogonal(A, phase=True):
     """
     Chord length density function for orthogonal directions.
-
     This algorithm defines paths in 2 or 3 orthogonal directions along main
     axes. These paths are then translated along with the medium in the
     remaining directions for each path. A chord is a line segment between
@@ -1645,7 +1583,6 @@ def chordLengthDensityFunction_orthogonal(A, phase=True):
     direction are summed and the number of chords is divided by this sum. This
     satisfies that the resulting CLD is a probability density function with the
     area below the curve equal to one.
-
     Parameters
     ----------
     A : Boolean NumPy array (2D or 3D)
@@ -1653,7 +1590,6 @@ def chordLengthDensityFunction_orthogonal(A, phase=True):
     phase : Boolean, optional
         The requested phase for the chord length density function evaluation.
         The default is True.
-
     Returns
     -------
     CLD : list of float arrays
@@ -1805,12 +1741,10 @@ def particle_quantification(A, all_methods=False, printPhaseVals=False):
     evaluates: a specific surface by a stereological approach, extrapolation,
     and differentiation of the two-point probability function; a volume 
     of voxels, and a diameter of an equivalent sphere volume.    
-
     Parameters
     ----------
     A : Boolean NumPy 3D array
         Input array of the medium; True represents the selected phase.
-
     Returns
     -------
     out : Numpy 2D array 
@@ -1877,17 +1811,14 @@ def particle_quantification(A, all_methods=False, printPhaseVals=False):
 def remove_edge_particles_clusters(A):
     """
     Remove all particles that are connected to any edge of the media.
-
     Parameters
     ----------
     A : Boolean NumPy 3D array
         Input array of the medium; True represents the selected phase.
-
     Returns
     -------
     out : Boolean NumPy 3D array
           A cleaned from all particles touching any edge of the media.
-
     """
     dim = A.ndim
 
@@ -1915,19 +1846,16 @@ def enlarged_array(origMatrix,thickness=5):
     The original array has size of W-by-H-by-D, the new array is 2*thickness
     larger to each dimension. thickness from outside to inside is always
     empty.
-
     Parameters
     ----------
     origMatrix : NumPy 3D array
         Input array of the medium.
     thickness : int
         Number of outside empty layers in the new array.
-
     Returns
     -------
     enlargedMatrix : NumPy 3D array
           Enlarged original array.
-
     """
     
     enlargedMatrix=np.zeros((origMatrix.shape[0]+2*thickness, 
