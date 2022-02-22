@@ -1299,6 +1299,17 @@ def L2_direct_computation_dll(A, depmax, rowmax, colmax, phase=True, step=1):
     v2.0 - Computation for 3D images.
     v3.0 - Rewritten to C, the code is compiled to *.dll and the *.dll is run
            by Python via this code.
+           
+    IMPORTANT NOTE: This function works only if lineal_path_c.dll exists, which
+    can be created with following commands in a command line (if gcc is installed)
+    
+        gcc -std=c11 -Wall -Wextra -pedantic -c -fPIC lineal_path_c.c -o lineal_path_c.o
+        gcc -shared lineal_path_c.o -o lineal_path_c.dll
+        
+    The created dll file has to be placed in the same folder as this module.
+    
+    This version is tested on Windows, we are working on some slight changes for
+    path generation in Linux.
 
     Parameters
     ----------
