@@ -3,8 +3,8 @@
 """
 Test script for image processing and development of image processing library.
 
-@authors:   Adela Hlobilova, ITAM of the CAS, adela.hlobilova@gmail.com
-            Michal Hlobil, ITAM of the CAS, michalhlobil@seznam.cz
+@authors:   Adela Hlobilova, adela.hlobilova@gmail.com
+            Michal Hlobil, michalhlobil@seznam.cz
 """
 
 import MultComPy as mcp
@@ -15,6 +15,7 @@ import time
 import scipy.ndimage as spim
 from PIL import Image, ImageFilter 
 import matplotlib.pyplot as plt
+import sys
 
 
 img_name = "2DcemPaste_clinkerVol_0.05_size_100x100.0.img.png"
@@ -92,11 +93,14 @@ def image_final():
 print("Computing S2 from MultComPy.py ....")
 tic = time.time()
 S2 = mcp.S2_Discrete_Fourier_transform(img_array, img_array)
+## or alternatively by direct computation; this output will be equal to the output
+## via Discrete Fourier transform, but it will be much slower: 
+# S2_alt = mcp.S2_direct_computation(img_array, img_array)
+
 S2_tr = mcp.transform_ND_to_1D(S2, rmax=int(len(img_array)/2))
 toc = time.time() - tic
 print("**S2 evaluation from MultComPy done! Elapsed time is {:.4f} seconds."
       .format(toc))
-
 
 #  graphical representation of the results
 ax = image_init()

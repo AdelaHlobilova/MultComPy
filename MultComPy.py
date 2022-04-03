@@ -138,11 +138,11 @@ def S2_direct_computation(img_array1, img_array2, larger=True):
     for i in range(0, dep):
         for j in range(row, 2*row):
             for k in range(col, 2*col):
-                if img_array1[i % dep, j % row, k % col] is True:
+                if img_array1[i % dep, j % row, k % col] == True:
                     for m in range(0, numvecs):
                         if (img_array2[(i+vecs[m, 0]) % dep,
                                        (j+vecs[m, 1]) % row,
-                                       (k+vecs[m, 2]) % col] is True):
+                                       (k+vecs[m, 2]) % col] == True):
                             S2_mat[vecs[m, 0],
                                    vecs[m, 1]+row-1,
                                    vecs[m, 2]+col-1] += 1
