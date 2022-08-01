@@ -174,9 +174,7 @@ L222_2 = mcp.L2_direct_computation_dll(img_array, *img_array.shape, phase=True, 
                               progress_flag=1, start_dep=1, stop_dep=2)
 L222_3 = mcp.L2_direct_computation_dll(img_array, *img_array.shape, phase=True, step=1, 
                               progress_flag=1, start_dep=2, stop_dep=3)
-L222_4 = mcp.L2_direct_computation_dll(img_array, *img_array.shape, phase=True, step=1, 
-                              progress_flag=1, start_dep=3, stop_dep=4)
-L222 = mcp.collect_partial_frequency_matrices_and_transform_to_L2(*img_array.shape, [0,1,2,3], [1,2,3,4])
+L222 = mcp.collect_partial_frequency_matrices_and_transform_to_L2(*img_array.shape, [0,1,2], [1,2,3])
 
 L222_tr = mcp.transform_ND_to_1D(L222)
 toc = time.time()-tic
