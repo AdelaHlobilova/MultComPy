@@ -17,6 +17,15 @@
     pp. 291). The Lineal path algorithm translates all paths along with the
     medium.
 
+    USAGE ON LINUX MACHINES:
+    compile using gcc to create shared object as follows:
+    gcc -std=c11 -Wall -Wextra -pedantic -c -fPIC -O3 -flto -ftree-loop-optimize -ftree-loop-vectorize lineal_path_c.c -o lineal_path_c.o
+    gcc -shared lineal_path_c.o -o lineal_path_c.so
+
+    USAGE ON WINDOWS MACHINES:
+    gcc -std=c11 -Wall -Wextra -pedantic -c -fPIC lineal_path_c.c -o lineal_path_c.o
+    gcc -shared lineal_path_c.o -o lineal_path_c.dll
+
     References
     ----------
     [1] Torquato, S. (2002). Random Heterogeneous Materials:
@@ -27,45 +36,21 @@
     function. Computational Materials Science, 122, 102-117.
 
     @author:   Adela Hlobilova, adela.hlobilova@gmail.com
-    Last edit on Feb 22 2022 21:50
+    Last edit on May 17, 2022
 */
 
 #include <stdio.h>
 #include <stdlib.h>
 #include<string.h>
 #include<math.h>
+#include <time.h>
 
 int offset(int x, int y, int z, int row, int col);
 int largest(int arr[], int n);
 void Bresenham3D(int x1, int y1, int z1, int x2, int y2, int z2, int* path, int *steps);
 void L2_generate_paths(int dep, int row, int col, int imgdep, int imgrow, int imgcol, int step_in_image, int** paths, int* count_vox_in_paths, int *len_paths, int *num_paths);  //, int *len_paths, int *paths
-void L2_direct_computation(int *A, int dep, int row, int col, int phase, int** paths, int* count_vox_in_paths, int *len_paths, int num_paths, double* L2_mat_prob);
-void Lineal_path(int dep, int row, int col, int imgdep, int imgrow, int imgcol, int phase, int step_in_image, int *img_array, double *L2_mat_prob);
-
-int main(void)
-{
-    // necessary inputs for testing purposes, 3D image 3 x 10 x 10 voxels; these inputs do not influence the evaluation via Python since the main function is not used there
-    int dep = 3;  // axis-0 coordinate for maximum path
-    int row = 10; // axis-1 coordinate for maximum path
-    int col = 10; // axis-2 coordinate for maximum path
-    int imgdep = 3;  // image size
-    int imgrow = 10; // image size
-    int imgcol = 10; // image size
-    int phase = 1;   // this phase will be used for L2 evaluation
-    int step_in_image = 1;
-
-    int img_array[300] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,
-                           0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,1,1,0,0,1,1,1,1,0,1,1,1,1,0,1,1,1,1,0,1,1,1,1,0,0,1,1,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,1,1,1,1,1,0,0,0,0,0,1,1,1,1,1,0,
-                           0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,1,1,0,0,0,1,1,0,0,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,0,1,1,0,0,0,0,1,1,1,1,1,1};
-
-    double * L2_mat_prob;
-    int count_voxels = (2*imgdep-1) * (2*imgrow-1) * (2*imgcol-1);
-
-    L2_mat_prob = (double*) calloc(count_voxels, sizeof(double));
-    Lineal_path(dep,row,col,imgdep,imgrow,imgcol,phase,step_in_image,img_array,L2_mat_prob);
-
-    return 0;
-}
+void L2_direct_computation(int *A, int dep, int row, int col, int phase, int** paths, int* count_vox_in_paths, int *len_paths, int num_paths, double* L2_mat_prob, int progress_flag, int start_dep, int stop_dep);
+void Lineal_path(int dep, int row, int col, int imgdep, int imgrow, int imgcol, int phase, int step_in_image, int *img_array, double *L2_mat_prob, int progress_flag, int start_dep, int stop_dep);
 
 
 int offset(int x, int y, int z, int row, int col) {
@@ -258,7 +243,6 @@ void L2_generate_paths(int dep, int row, int col, int imgdep, int imgrow, int im
     }
 
     *num_paths = step;
-
     // how many times are all the paths repeated?
     for (i=0; i<step;i++){
         for (j=0; j<((int) len_paths[i]/dim); j++){
@@ -276,42 +260,51 @@ void L2_generate_paths(int dep, int row, int col, int imgdep, int imgrow, int im
 return;
 }
 
-void L2_direct_computation(int *A, int dep, int row, int col, int phase, int** paths, int* count_vox_in_paths, int *len_paths, int num_paths, double* L2_mat_prob){
+void L2_direct_computation(int *A, int dep, int row, int col, int phase, int** paths, int* count_vox_in_paths, int *len_paths, int num_paths, double* L2_mat_prob, int progress_flag, int start_dep, int stop_dep){
 
     /*
     A - 1D array with the medium saved along the rows
     dep - number of depths of the image
     row - number of rows of the image
     col - number of columns of the image
-    phase - only for this phase is L2 evaluated
+    phase - L2 is evaluated only for this phase
     paths - Bresenham's paths (2D dynamic array, each row represents one path, the length of each path can be variable)
     count_vox_in_paths - the number of repetition of each voxel in Bresenham's paths
     len_paths - lengths for each path (corresponds with the array paths in the same order)
     num_paths - total number of paths
     L2_mat_prob - Lineal path probability 3D matrix
+    progress_flag - 1 is for saving progress of the L2 evaluation, slows the evaluation
+    start_dep - the coordinate of the medium depth to start with, 0 for whole medium
+    stop_dep  - the coordinate of the medium depth to end with, -1 for whole medium
 
     */
 
     int i, j, k, l, m, x, y, z, coord_A, coord_L2, shift;
     int dim = 3;
-    int count = 0;
-    double perc;
     int *L2_mat;
     double temp;
-
+    int count = 0;
+    double perc;
     FILE *fptr3;
-    fptr3 = fopen("progress.txt", "w");
-        // exiting program
-    if (fptr3 == NULL) {
-        printf("Error!");
-        exit(1);
+    FILE *fid;
+
+    if (progress_flag == 1) {
+
+        fptr3 = fopen("TEMP-L2_progress.txt", "w");
+            // exiting program
+        if (fptr3 == NULL) {
+            printf("Error!");
+            exit(1);
+        }
+
     }
 
     int count_voxels_half = dep * (2*row-1) * (2*col-1);
     L2_mat = (int*) calloc(count_voxels_half, sizeof(int));
 
+    if (stop_dep == -1) {stop_dep = dep; }
 
-    for (i = 0; i<dep; i++){
+    for (i = 0+start_dep; i<stop_dep; i++){
         for (j = row; j<2*row; j++){
             for (k = col; k<2*col; k++){
 
@@ -335,37 +328,69 @@ void L2_direct_computation(int *A, int dep, int row, int col, int phase, int** p
                         }
                     }
                 }
-                count++;
-                perc = (double)count/(double)(row*col*dep)*100;
-                fprintf(fptr3,"%d out of %d, %f%% done \n",count,dep*row*col,perc);
 
-                FILE *fptr4;
-                fptr4 = fopen("freq_mat.txt", "w");
-                // exiting program
-                if (fptr4 == NULL) {
-                    printf("Error!");
-                    exit(1);
-                }
+                if (progress_flag == 1) {
+                    count++;
+                    if (count % 100 == 0)
+                    {
+                        perc = (double)count/(double)(row*col*dep)*100;
+                        fprintf(fptr3,"%d out of %d, %f%% done, dep: %d (%d - %d), row: %d, col: %d \n",count,dep*row*col,perc, i, start_dep, stop_dep, j, k);
+                    }
 
-                for (l = 0; l<dep*row*col; l++){
-                    fprintf(fptr4, "%d ",L2_mat[l]);
                 }
-                fprintf(fptr4, "\ndep: %d, row: %d, col: %d\n",i,j,k);
-                fclose(fptr4);
             }
         }
     }
 
-    fclose(fptr3);
+    if (progress_flag == 1){
+        fclose(fptr3);
+
+        // save frequency matrix and the last scanned pixel
+        FILE *fptr4;
+
+
+        char name_file[32];
+        sprintf(name_file, "TEMP-L2_freq_mat_%d-%d.dat", start_dep, stop_dep);
+        printf("File name of the (partial) frequency matrix: %s \n", name_file);
+
+        //fptr4 = fopen("TEMP-L2_freq_mat.txt", "w");
+        fptr4 = fopen(name_file, "w");
+        // exiting program
+        if (fptr4 == NULL) {
+            printf("Error!");
+            exit(1);
+        }
+
+        for (l = 0; l<count_voxels_half; l++){
+            fprintf(fptr4, "%d ",L2_mat[l]);
+        }
+        fprintf(fptr4, "\ndep: %d, row: %d, col: %d\n",i,j,k);
+        fclose(fptr4);
+
+        fid = fopen("TEMP-L2_possible_path_occurences.dat", "w");
+        // exiting program
+        if (fid == NULL) {
+            printf("Error!");
+            exit(1);
+        }
+
+    }
 
     shift = (dep-1) * (2*row-1) * (2*col-1);
     for (i = 0; i< ( dep * (2*row-1) * (2*col-1)) ; i++){
         if (count_vox_in_paths[i] != 0){
             temp = (double) (count_vox_in_paths[i] + 0.0);
             L2_mat_prob[i+shift] = L2_mat[i] / temp ;
+            if (progress_flag == 1){
+                fprintf(fid, "%d ",count_vox_in_paths[i]);
+            }
         }
     }
 
+    if (progress_flag == 1){
+        fprintf(fid, "\n");
+        fclose(fid);
+    }
 
     for (i = 0; i< (dep-1); i++){
         for (j = 0; j<(2*row-1); j++){
@@ -375,46 +400,18 @@ void L2_direct_computation(int *A, int dep, int row, int col, int phase, int** p
         }
     }
 
-    FILE *fptr2;
-    fptr2 = fopen("L2_mat.txt", "w");
-        // exiting program
-    if (fptr2 == NULL) {
-        printf("Error!");
-        exit(1);
-    }
-
-    for (i = 0; i<dep; i++){
-        for (j = 0; j<row; j++){
-            for (k = 0; k<col; k++){
-                fprintf(fptr2,"%d ",A[offset(i,j,k,row,col)]);
-            }
-            fprintf(fptr2,"\n");
-        }
-        fprintf(fptr2,"\n");
-    }
-    fprintf(fptr2,"------------------------------------- \n\n\n\n");
-
-    for (i = 0; i<2*dep-1; i++){
-        for (j = 0; j<2*row-1; j++){
-            for (k = 0; k<2*col-1; k++){
-                fprintf(fptr2,"%g ",L2_mat_prob[offset(i,j,k,2*row-1,2*col-1)]);
-            }
-            fprintf(fptr2,"\n");
-        }
-        fprintf(fptr2,"\n");
-    }
-    fclose(fptr2);
-
     printf("Lineal path done\n");
 
     return;
 }
 
-void Lineal_path(int dep, int row, int col, int imgdep, int imgrow, int imgcol, int phase, int step_in_image, int *img_array, double *L2_mat_prob){
+void Lineal_path(int dep, int row, int col, int imgdep, int imgrow, int imgcol, int phase, int step_in_image, int *img_array, double *L2_mat_prob, int progress_flag, int start_dep, int stop_dep){
 
     int num_paths, num_paths_guess, count_voxels_half;
     int *len_paths, **paths, *count_vox_in_paths;
     float a, b, c, d;
+    clock_t start, end;
+    double cpu_time_used;
 
     if (step_in_image == 1){
         num_paths_guess  = (2*row-1)*(2*col-1)*2 + (2*row-1)*(dep-2)*2 + (2*col-3)*(dep-2)*2;
@@ -441,7 +438,11 @@ void Lineal_path(int dep, int row, int col, int imgdep, int imgrow, int imgcol, 
         exit(0);
     }
 
+    start = clock();
     L2_generate_paths(dep, row, col, imgdep, imgrow, imgcol, step_in_image, paths, count_vox_in_paths, len_paths, &num_paths);
+    end = clock();
+    cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+    printf("L2_generate_paths: %g\n",cpu_time_used);
 
    if (num_paths != num_paths_guess){
         printf("Warning: Evaluated number of paths is different from the real number of paths. \n");
@@ -450,7 +451,11 @@ void Lineal_path(int dep, int row, int col, int imgdep, int imgrow, int imgcol, 
         }
     }
 
-    L2_direct_computation(img_array, imgdep, imgrow, imgcol, phase, paths, count_vox_in_paths, len_paths, num_paths, L2_mat_prob);
+    start = clock();
+    L2_direct_computation(img_array, imgdep, imgrow, imgcol, phase, paths, count_vox_in_paths, len_paths, num_paths, L2_mat_prob, progress_flag, start_dep, stop_dep);
+    end = clock();
+    cpu_time_used = ((double) (end - start)) / CLOCKS_PER_SEC;
+    printf("L2_direct_computation: %g\n",cpu_time_used);
 
     /* free memory */
     free(len_paths);
@@ -461,7 +466,7 @@ void Lineal_path(int dep, int row, int col, int imgdep, int imgrow, int imgcol, 
     count_vox_in_paths = NULL;
 
     printf("Done. Memory cleared. \n");
+    //printf("Version from May 17, 15:24 \n");
 
     return ;
 }
-

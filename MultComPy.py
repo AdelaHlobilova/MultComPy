@@ -6,9 +6,47 @@ MultComPy (Multiphase composite in Python) contains functions for evaluating
 statistical descriptors using image analysis from realistic paste microstructures 
 obtained from computed microtomography.
 Created on Sun Feb 14 09:08:28 2021
-Last edit on Mon Feb 02 21:45 2022
+Last edit on Mon Jul 31
 @authors:   Adela Hlobilova, adela.hlobilova@gmail.com
             Michal Hlobil, michalhlobil@seznam.cz
+
+Main functions:
+---    S2_direct_computation(img_array1, img_array2, larger=True)
+---    S2_Discrete_Fourier_transform(img_array1, img_array2, larger=True)
+---    transform_ND_to_1D(X, step=1, rmax="max", D=1, scale=0)
+---    real_surface_stereological_approach(im)
+---    real_surface_extrapolation(im, max_iter=5)
+---    real_surface_differentiation_S2(img_array)
+---    C2_Discrete_Fourier_transform(img_array, larger=True)
+---    L2_direct_computation(A, maxsize, phase=True, step=1, method="py")
+---    shortest_distance_from_hydrate_to_clinker_surface(A, clinker_phase,
+                                                          hydrate_phase,
+                                                          flag="PBC",
+                                                          num_in_batch=400)
+---    chordLengthDensityFunction_orthogonal(A, phase=True)
+---    particle_quantification(A, all_methods=False, printPhaseVals=False)
+---    remove_edge_particles_clusters(A)
+---    enlarged_array(origMatrix,thickness=5)
+---    export2gnuplot(filename='', fileDescription='', storeArrays=(), 
+                       colDescription='', colFormat='%.3f')
+---    collect_partial_frequency_matrices_and_transform_to_L2(dep, row, col, 
+                                                               starts, stops, 
+                                                               root_name="TEMP-L2_freq_mat_")
+
+Helper functions:
+---    my_shift(x)
+---    BW_morph_remove(img_array, phase)
+---    find_edges(img_array, flag="dilate", it=1)
+---    BresLineAlg(x0, y0, x1, y1)
+---    Bresenham3D(x1, y1, z1, x2, y2, z2)
+---    L2_generate_paths(row, col, imgrow, imgcol, step=1)
+---    L2_generate_paths_3D(dep, row, col, imgdep, imgrow, imgcol, step=1)
+---    L2_direct_computation_2D(A, rowmax, colmax, phase=True, step=1)
+---    L2_direct_computation_3D(A, depmax, rowmax, colmax, phase=True, step=1)
+---    L2_direct_computation_dll(A, depmax, rowmax, colmax, phase=True, step=1, 
+                                  progress_flag=0, start_dep=0, stop_dep=-1)
+
+
 """
 
 from PIL import Image
@@ -1214,7 +1252,8 @@ def L2_direct_computation_3D(A, depmax, rowmax, colmax, phase=True, step=1):
 ##############################################################################
 
 
-def L2_direct_computation_dll(A, depmax, rowmax, colmax, phase=True, step=1):
+def L2_direct_computation_dll(A, depmax, rowmax, colmax, phase=True, step=1, 
+                              progress_flag=0, start_dep=0, stop_dep=-1):
     """
     Lineal path function computed by brute force in C precompiled code.
     Lineal path function is a probability that a line segment lies in the same
@@ -1275,10 +1314,34 @@ def L2_direct_computation_dll(A, depmax, rowmax, colmax, phase=True, step=1):
         paths are skipped is determined by the step parameter, if the step is
         greater than 1, each step-th path is generated. The more paths skipped,
         the less accurate the lineal path function result is. The default is 1.
+    progress_flag : int, optional (possibilities 0 and 1)
+        If progress flag is 1, this function saves outputs with a frequency matrix
+        and a progress. If it equals to 0, no progress is printed out. Default
+        is 0. Note that, the printing out some information may slow down the 
+        evaluation process.
+    start : int, optional
+        The lineal path function may take long time to evaluate on large media.
+        Therefore, to parallelize it or evaluate it per partes, its computation
+        can be splitted into several steps. The lineal path is then evaluated
+        on media slices and the frequency matrices (the number of path occurences
+        in the media) are stored separately for each step. These frequency matrices
+        are then summed up and divided by the absolute possible path occurences
+        in an arbitrary medium. This variable indicates the depth start where to
+        evaluate the frequency matrix. The default is 0 meaning the frequency
+        matrix is evaluated from the depth 0.
+    stop : int, optional
+        The depth end where to evaluate the frequency matrix (exclusive). The 
+        default is -1 meaning the frequency matrix is evaluated to the end. If 
+        start is set to 0 and stop is set to -1, the frequency matrix is evaluated
+        on the whole medium and the lineal path is valid for the medium. Otherwise,
+        the lineal path is incomplete and cannot be used for the whole medium but
+        the part quantified by the start and stop.
+    
     Returns
     -------
     L2_mat : NumPy float array
         The lineal path matrix function.
+        
     References
     ----------
     [1] Torquato, S. (2002). Random Heterogeneous Materials:
@@ -1296,7 +1359,7 @@ def L2_direct_computation_dll(A, depmax, rowmax, colmax, phase=True, step=1):
         path= os.getcwd()
         for root, dirs, files in os.walk(path):
             for name in files:
-                if name.endswith(".dll") :
+                if name.endswith(".so") :
                     lineal_path_c_path = ctypes.util.find_library("%s/%s" %(root, name))
 
     if not lineal_path_c_path:
@@ -1329,7 +1392,8 @@ def L2_direct_computation_dll(A, depmax, rowmax, colmax, phase=True, step=1):
                             ctypes.c_int, ctypes.c_int, ctypes.c_int,
                             ctypes.c_int, ctypes.c_int,
                             ctypes.POINTER(ctypes.c_int),
-                            ctypes.POINTER(ctypes.c_double)]
+                            ctypes.POINTER(ctypes.c_double),
+                            ctypes.c_int, ctypes.c_int, ctypes.c_int]
     Lineal_path.restype = None
 
     c_int_p = ctypes.POINTER(ctypes.c_int)
@@ -1345,7 +1409,8 @@ def L2_direct_computation_dll(A, depmax, rowmax, colmax, phase=True, step=1):
     LP_res_p = LP_res.ctypes.data_as(c_double_p)
 
     Lineal_path(depmax, rowmax, colmax, dep, row, col,
-                phase, step, img_array_flat_p, LP_res_p)
+                phase, step, img_array_flat_p, LP_res_p, 
+                progress_flag, start_dep, stop_dep)
     L2_mat = np.reshape(LP_res, (depL2, rowL2, colL2))
 
     idx = []
@@ -1560,6 +1625,7 @@ def shortest_distance_from_hydrate_to_clinker_surface(A, clinker_phase,
                     % (i+1, num_batches, (i+1)/num_batches*100, current_time))
 
     vals, bin_edges = np.histogram(min_dists,range(1,int(np.ceil(np.max(min_dists))+1)))
+    # plt.hist(min_dists, range(1,int(np.ceil(np.max(min_dists))+1)), alpha = 0.5, color= 'b', label='no BC')
     vals = np.append(vals,0)
     
     return vals, bin_edges
@@ -1892,3 +1958,70 @@ def export2gnuplot(filename='', fileDescription='', storeArrays=(),
     print('\n-> Data saved to file: "'+fullName+'"<-')
     
     return 0
+
+###############################################################################
+
+
+def collect_partial_frequency_matrices_and_transform_to_L2(dep, row, col, 
+                                                           starts, stops, 
+                                                           root_name="TEMP-L2_freq_mat_"):
+    """
+    Collect partial frequency matrices and transform them into the lineal path function.
+
+    If the media is too large for one lineal path evaluation or in case of the
+    parallelization, it can be evaluated per partes, since lineal path function
+    generates paths and translates them along the medium and these path translations
+    are independent from each other. Function L2_direct_computation_dll with 
+    progress_flag switcher provides the partial frequency matrices that has to be
+    summed up together and divided by a maximum possible number of path occurences
+    in the medium. These steps reconstructs the lineal path function for the 
+    whole medium. The parallelization is made via depths of the medium if the
+    medium is 3D with size [depth, rows, columns].
+    
+    The frequency matrix is stored as a row vector even if it has more dimensions. 
+    The order is row-wise and the matrix needs to be transformed back to 3D.
+
+    Parameters
+    ----------
+    dep : int
+        Number of depths in the medium.
+    row : int
+        Number of rows in the medium.
+    col : int
+        Number of columns in the medium.
+    starts : int list
+        List filled with starts for the frequency matrices evaluations.
+    stops : int list
+        List filled with ends for the frequency matrices evaluations.
+    root_name : string, optional
+        The root of the file names where the partial frequency matrices are 
+        stored. The default is "TEMP-L2_freq_mat_".
+
+    Returns
+    -------
+    L2_mat : NumPy float 3D array
+        The lineal path matrix function.
+    """
+    
+    #num_of_files = len(starts)
+    mat = np.zeros((dep * (2*row-1) * (2*col-1)))
+    
+    for i, start in enumerate(starts):
+        name_file = root_name + str(start) + "-" + str(stops[i]) + ".dat"
+        with open(name_file) as fid:
+            temp_data = fid.readline()
+            mat += np.array(temp_data.split(),dtype="int")
+            
+    with open("TEMP-L2_possible_path_occurences.dat") as fid:
+        temp_data = np.array(fid.readline().split(),dtype="int")
+        
+    L2_mat = mat / temp_data
+        
+    L2_mat = np.reshape(L2_mat,(dep,2*row-1,2*col-1))
+    
+    # L2 is symmetric, rotating the upper half part
+    L22 = np.rot90(L2_mat, 2)
+    L22 = np.delete(L22, L22.shape[0]-1, 0)
+    L2_mat = np.concatenate((L22, L2_mat), axis=0)
+    
+    return L2_mat
