@@ -31,7 +31,7 @@
     [1] Torquato, S. (2002). Random Heterogeneous Materials:
     Microstructure and Macroscopic Properties. Interdisciplinary Applied
     Mathematics, Springer, New York, NY, 703 pages. Pp. 285.
-    [2] Havelka, J., Kuèerová, A., & Sýkora, J. (2016). Compression and
+    [2] Havelka, J., Kuï¿½erovï¿½, A., & Sï¿½kora, J. (2016). Compression and
     reconstruction of random microstructures using accelerated lineal path
     function. Computational Materials Science, 122, 102-117.
 
@@ -273,7 +273,9 @@ void L2_direct_computation(int *A, int dep, int row, int col, int phase, int** p
     len_paths - lengths for each path (corresponds with the array paths in the same order)
     num_paths - total number of paths
     L2_mat_prob - Lineal path probability 3D matrix
-    progress_flag - 1 is for saving progress of the L2 evaluation, slows the evaluation
+    progress_flag - 0: no printed output data into files
+                  - 1: prints the frequency matrix and matrix with path occurrences (dependent only on the size of the medium) 
+                  - 2: prints all the data as 1 and the progress of the L2 evaluation
     start_dep - the coordinate of the medium depth to start with, 0 for whole medium
     stop_dep  - the coordinate of the medium depth to end with, -1 for whole medium
 
@@ -288,7 +290,7 @@ void L2_direct_computation(int *A, int dep, int row, int col, int phase, int** p
     FILE *fptr3;
     FILE *fid;
 
-    if (progress_flag == 1) {
+    if (progress_flag == 2) {
 
         fptr3 = fopen("TEMP-L2_progress.txt", "w");
             // exiting program
@@ -329,7 +331,7 @@ void L2_direct_computation(int *A, int dep, int row, int col, int phase, int** p
                     }
                 }
 
-                if (progress_flag == 1) {
+                if (progress_flag == 2) {
                     count++;
                     if (count % 100 == 0)
                     {
@@ -342,12 +344,12 @@ void L2_direct_computation(int *A, int dep, int row, int col, int phase, int** p
         }
     }
 
-    if (progress_flag == 1){
+    if (progress_flag == 2){
         fclose(fptr3);
-
+    }
+    if (progress_flag == 1 || progress_flag == 2){
         // save frequency matrix and the last scanned pixel
         FILE *fptr4;
-
 
         char name_file[32];
         sprintf(name_file, "TEMP-L2_freq_mat_%d-%d.dat", start_dep, stop_dep);
@@ -381,13 +383,13 @@ void L2_direct_computation(int *A, int dep, int row, int col, int phase, int** p
         if (count_vox_in_paths[i] != 0){
             temp = (double) (count_vox_in_paths[i] + 0.0);
             L2_mat_prob[i+shift] = L2_mat[i] / temp ;
-            if (progress_flag == 1){
+            if (progress_flag == 1 || progress_flag == 2){
                 fprintf(fid, "%d ",count_vox_in_paths[i]);
             }
         }
     }
 
-    if (progress_flag == 1){
+    if (progress_flag == 1 || progress_flag == 2){
         fprintf(fid, "\n");
         fclose(fid);
     }
