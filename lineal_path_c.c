@@ -274,8 +274,9 @@ void L2_direct_computation(int *A, int dep, int row, int col, int phase, int** p
     num_paths - total number of paths
     L2_mat_prob - Lineal path probability 3D matrix
     progress_flag - 0: no printed output data into files
-                  - 1: prints the frequency matrix and matrix with path occurrences (dependent only on the size of the medium) 
-                  - 2: prints all the data as 1 and the progress of the L2 evaluation
+                  - 1: prints the frequency matrix 
+                  - 2: prints the frequency matrix and matrix with path occurrences (dependent only on the size of the medium)     
+                  - 3: prints all the data as 1 and the progress of the L2 evaluation
     start_dep - the coordinate of the medium depth to start with, 0 for whole medium
     stop_dep  - the coordinate of the medium depth to end with, -1 for whole medium
 
@@ -290,7 +291,7 @@ void L2_direct_computation(int *A, int dep, int row, int col, int phase, int** p
     FILE *fptr3;
     FILE *fid;
 
-    if (progress_flag == 2) {
+    if (progress_flag == 3) {
 
         fptr3 = fopen("TEMP-L2_progress.txt", "w");
             // exiting program
@@ -331,7 +332,7 @@ void L2_direct_computation(int *A, int dep, int row, int col, int phase, int** p
                     }
                 }
 
-                if (progress_flag == 2) {
+                if (progress_flag == 3) {
                     count++;
                     if (count % 100 == 0)
                     {
@@ -344,10 +345,10 @@ void L2_direct_computation(int *A, int dep, int row, int col, int phase, int** p
         }
     }
 
-    if (progress_flag == 2){
+    if (progress_flag == 3){
         fclose(fptr3);
     }
-    if (progress_flag == 1 || progress_flag == 2){
+    if (progress_flag != 0){
         // save frequency matrix and the last scanned pixel
         FILE *fptr4;
 
@@ -368,7 +369,9 @@ void L2_direct_computation(int *A, int dep, int row, int col, int phase, int** p
         }
         fprintf(fptr4, "\ndep: %d, row: %d, col: %d\n",i,j,k);
         fclose(fptr4);
-
+    }
+    
+    if (progress_flag == 2 || progress_flag == 3){    
         fid = fopen("TEMP-L2_possible_path_occurences.dat", "w");
         // exiting program
         if (fid == NULL) {
@@ -383,13 +386,13 @@ void L2_direct_computation(int *A, int dep, int row, int col, int phase, int** p
         if (count_vox_in_paths[i] != 0){
             temp = (double) (count_vox_in_paths[i] + 0.0);
             L2_mat_prob[i+shift] = L2_mat[i] / temp ;
-            if (progress_flag == 1 || progress_flag == 2){
+            if (progress_flag == 2 || progress_flag == 3){
                 fprintf(fid, "%d ",count_vox_in_paths[i]);
             }
         }
     }
 
-    if (progress_flag == 1 || progress_flag == 2){
+    if (progress_flag == 2 || progress_flag == 3){
         fprintf(fid, "\n");
         fclose(fid);
     }
