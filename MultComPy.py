@@ -63,6 +63,7 @@ import matplotlib.pyplot as plt
 import os
 import pathlib
 import platform
+from scipy import fft as sp_ft
 
 ##############################################################################
 
@@ -88,7 +89,7 @@ def my_shift(x):
     sz = np.array(x.shape)
     idx = []
     for i in range(0, nd):
-        idx.append(list(range(1, sz[i]))+list(range(0, sz[i])))
+        idx.append(list(range(1, sz[i])) + list(range(0, sz[i])))
     retval = x[np.ix_(*idx)]
 
     return retval
@@ -149,8 +150,10 @@ def S2_direct_computation(img_array1, img_array2, larger=True):
         statistically homogeneous and isotropic media).
     """
     if img_array1.shape != img_array2.shape:
-        print('''Images must have identical dimensions (depths, rows, columns).
-              Terminating without evaluations.''')
+        print(
+            """Images must have identical dimensions (depths, rows, columns).
+              Terminating without evaluations."""
+        )
         return "Error"
 
     original_ndim = img_array1.ndim
@@ -160,40 +163,51 @@ def S2_direct_computation(img_array1, img_array2, larger=True):
         img_array2 = np.expand_dims(img_array2, axis=0)
 
     dep, row, col = img_array1.shape
-    S2_mat = np.zeros((dep, 2*row-1, 2*col-1))
-    numvecs = dep*(2*row-1)*(2*col-1)
+    S2_mat = np.zeros((dep, 2 * row - 1, 2 * col - 1))
+    numvecs = dep * (2 * row - 1) * (2 * col - 1)
     vecs = np.zeros((numvecs, 3), dtype=int)
 
     count = 0
     for i in range(0, dep):
-        for j in range(-row+1, row):
-            for k in range(-col+1, col):
+        for j in range(-row + 1, row):
+            for k in range(-col + 1, col):
                 vecs[count, 0] = i
                 vecs[count, 1] = j
                 vecs[count, 2] = k
                 count += 1
 
     for i in range(0, dep):
-        for j in range(row, 2*row):
-            for k in range(col, 2*col):
+        for j in range(row, 2 * row):
+            for k in range(col, 2 * col):
                 if img_array1[i % dep, j % row, k % col] == True:
                     for m in range(0, numvecs):
-                        if (img_array2[(i+vecs[m, 0]) % dep,
-                                       (j+vecs[m, 1]) % row,
-                                       (k+vecs[m, 2]) % col] == True):
-                            S2_mat[vecs[m, 0],
-                                   vecs[m, 1]+row-1,
-                                   vecs[m, 2]+col-1] += 1
+                        if (
+                            img_array2[
+                                (i + vecs[m, 0]) % dep,
+                                (j + vecs[m, 1]) % row,
+                                (k + vecs[m, 2]) % col,
+                            ]
+                            == True
+                        ):
+                            S2_mat[
+                                vecs[m, 0], vecs[m, 1] + row - 1, vecs[m, 2] + col - 1
+                            ] += 1
             t = time.localtime()
             current_time = time.strftime("%H:%M:%S", t)
-            stdout.write("\r%d out of %d, %d %% done, local time: %s" %
-                         (i*row*col+(j-row)*col+(k-col)+1,
-                          dep*row*col,
-                          (i*row*col+(j-row)*col+(k-col)+1)/(dep*row*col)*100,
-                          current_time))
+            stdout.write(
+                "\r%d out of %d, %d %% done, local time: %s"
+                % (
+                    i * row * col + (j - row) * col + (k - col) + 1,
+                    dep * row * col,
+                    (i * row * col + (j - row) * col + (k - col) + 1)
+                    / (dep * row * col)
+                    * 100,
+                    current_time,
+                )
+            )
     print("\n")
-    S2_mat = S2_mat / (row*col*dep)
-    S2_mat = S2_mat[:, row-1:, col-1:]
+    S2_mat = S2_mat / (row * col * dep)
+    S2_mat = S2_mat[:, row - 1 :, col - 1 :]
 
     if original_ndim == 2:
         S2_mat = np.squeeze(S2_mat, axis=0)
@@ -203,10 +217,11 @@ def S2_direct_computation(img_array1, img_array2, larger=True):
 
     return S2_mat
 
+
 ##############################################################################
 
 
-def S2_Discrete_Fourier_transform(img_array1, img_array2, larger=True):
+def S2_Discrete_Fourier_transform(img_array1, img_array2=None, larger=True, version=0):
     """
     Two-point probability function evaluated by discrete Fourier transform.
     Two-point probability function (correlation function) represents
@@ -224,12 +239,14 @@ def S2_Discrete_Fourier_transform(img_array1, img_array2, larger=True):
     img_array1 : Boolean NumPy array
         2D or 3D logical array containing information about the examined
         phase as True
-    img_array2 : Boolean NumPy array
+    img_array2 : Boolean NumPy array, optional
         2D or 3D logical array with the same shape as img_array2. If img_array1
         and img_array2 are identical, the algorithm evaluates the
         auto-correlation function. Otherwise, the result of this function is
         the cross-correlation function (a necessary condition is that
-        img_array2 is opposite to img_array1 for a two-phase medium).
+        img_array2 is opposite to img_array1 for a two-phase medium). Default
+        is None. In this case, the function evaluates the auto-correlation 
+        function of the medium.
     larger : Boolean, optional
         The original size of the two-point probability function is larger than
         the original shape of the image (larger=True). If larger is set to
@@ -241,6 +258,28 @@ def S2_Discrete_Fourier_transform(img_array1, img_array2, larger=True):
         is set to True, the S2_mat contains the whole statistical descriptor
         and the origin of the coordinate system, i.e. the one-point probability
         function, is positioned in the middle of the output.
+    version : int, optional
+        We have several implementations for the two-point probability function 
+        during the temporary testing phase. All the versions provide identical 
+        outputs; however, the evaluation time differs. 
+        *Version 0:* original code version, which does not differentiate between 
+            the auto-correlation and cross-correlation functions. It, therefore, 
+            evaluates the Fourier transform twice for the identical image in the
+            case of the auto-correlation function, which is time demanding.
+            To evaluate the Fourier transform, this implementation uses numpy.fft.
+        *Version 1:* this version distinguishes the auto- and cross-correlation
+            function variant. In the auto-correlation function, the user defines
+            only img_array1 (and version=1). To evaluate the Fourier transform,
+            this implementation uses numpy.fft.
+        *Version 2:* this version distinguishes the auto- and cross-correlation 
+            function variants. To evaluate the Fourier transform, this 
+            implementation uses scipy.fftpack.
+        *Version 3:* this version distinguishes the auto- and cross-correlation
+            function variants. To evaluate the Fourier transform, this 
+            implementation uses scipy.fftpack. This version is similar to 
+            version 2. However, unlike version 2, version 3 provides shorter 
+            code (and potentially saves the memory during evaluation).
+        
     Returns
     -------
     S2_mat : float NumPy array
@@ -257,23 +296,76 @@ def S2_Discrete_Fourier_transform(img_array1, img_array2, larger=True):
         function, refer to transform_ND_to_1D() (which only works for the
         statistically homogeneous and isotropic media).
     """
-    if img_array1.shape != img_array2.shape:
-        print('''Images must have identical dimensions (depths, rows, columns).
-              Terminating without evaluations.''')
-        return "Error"
+    cum = np.prod(np.array(img_array1.shape))    
+    
+    if version == 0:
+        if img_array1.shape != img_array2.shape:
+            print(
+                """Images must have identical dimensions (depths, rows, columns).
+                  Terminating without evaluations."""
+            )
+            return "Error"
 
-    cum = np.prod(np.array(img_array1.shape))
+        C = np.fft.fftn(img_array1)
+        D = np.fft.fftn(img_array2)
+        E = C * np.conj(D)
+    
+        test = np.max(np.max(np.imag(E)))
+        if test > 0.01:
+            print("warning: max. abs. value of imag. part in FFTN is :", test)
+    
+        E = np.real(E)
+        S2_ND = np.real((np.fft.ifftn(E)) / cum)
+    elif version == 1:
+        if img_array2 is None:
+            C = np.fft.fftn(img_array1)
+            S2_ND = np.real((np.fft.ifftn(np.real(C * np.conj(C)))) / cum)
+        else:
+            if img_array1.shape != img_array2.shape:
+                print(
+                    """Images must have identical dimensions (depths, rows, columns).
+                      Terminating without evaluations."""
+                )
+                return "Error"
+            
+            S2_ND = np.real((np.fft.ifftn(np.real(np.fft.fftn(img_array1) * np.conj(np.fft.fftn(img_array2))))) / cum)    
+    elif version == 2:
+        if img_array2 is None:
+            C = sp_ft.rfftn(img_array1)
+            E = C * np.conj(C)
+        else:    
+            if img_array1.shape != img_array2.shape:
+                print(
+                    """Images must have identical dimensions (depths, rows, columns).
+                      Terminating without evaluations."""
+                )
+                return "Error"
+    
+            C = sp_ft.rfftn(img_array1)
+            D = sp_ft.rfftn(img_array2)
+            E = C * np.conj(D)
+       
+        test = np.max(np.max(np.imag(E)))
+        if test > 0.01:
+            print("warning: max. abs. value of imag. part in FFTN is :", test)
+    
+        E = np.real(E)
+        S2_ND = np.real((sp_ft.irfftn(E)) / cum)    
+    elif version == 3:
+        if img_array2 is None:
+            C = sp_ft.rfftn(img_array1)
+            S2_ND = np.real((sp_ft.irfftn(np.real(C * np.conj(C)))) / cum) 
+        else:    
+            if img_array1.shape != img_array2.shape:
+                print(
+                    """Images must have identical dimensions (depths, rows, columns).
+                      Terminating without evaluations."""
+                )
+                return "Error"
+    
+            # S2_ND = np.real((sp_ft.irfftn(np.real(sp_ft.rfftn(img_array1) * np.conj(sp_ft.rfftn(img_array2))))) / cum)  
+            S2_ND = (sp_ft.irfftn(sp_ft.rfftn(img_array1) * np.conj(sp_ft.rfftn(img_array2)))) / cum
 
-    C = np.fft.fftn(img_array1)
-    D = np.fft.fftn(img_array2)
-    E = C * np.conj(D)
-
-    test = np.max(np.max(np.imag(E)))
-    if test > 0.01:
-        print("warning: max. abs. value of imag. part in FFTN is :", test)
-
-    E = np.real(E)
-    S2_ND = np.real((np.fft.ifftn(E)) / cum)
 
     if larger:
         S2_ND = my_shift(S2_ND)
@@ -328,10 +420,10 @@ def transform_ND_to_1D(X, step=1, rmax="max", D=1, scale=0):
         S_mn(r). If D is not equal to 1, the third element of the list contains
         the corresponding r lengths of S_mn(r) rescaled with the parameter D.
     """
-    im_shape = ((np.array(X.shape)+1)/2).astype(int)  # size of the orig. image
+    im_shape = ((np.array(X.shape) + 1) / 2).astype(int)  # size of the orig. image
     dim = len(X.shape)
 
-    if rmax == 'max':
+    if rmax == "max":
         rmax = min(im_shape)
 
     coords = []
@@ -339,34 +431,29 @@ def transform_ND_to_1D(X, step=1, rmax="max", D=1, scale=0):
 
     # cut the medium to the required shape according to rmax
     for i in range(dim):
-        coords.append(list(range(-rmax+1, rmax)))  # X cut to square
-        idx.append(list(range(im_shape[i]-rmax, im_shape[i]+rmax-1)))
+        coords.append(list(range(-rmax + 1, rmax)))  # X cut to square
+        idx.append(list(range(im_shape[i] - rmax, im_shape[i] + rmax - 1)))
     X_cut = X[np.ix_(*idx)]
 
-    X_vec_r = np.arange(0, rmax+1, step)
+    X_vec_r = np.arange(0, rmax + 1, step)
     X_vec_val = np.zeros(len(X_vec_r))
     count = np.zeros(len(X_vec_r))
 
     if dim == 2:
-        pts = np.meshgrid(np.array(coords[0]),
-                          np.array(coords[1]))
-        crds = np.vstack([pts[0].flatten('F'),
-                          pts[1].flatten('F')]).T
-        dist = sptl.distance.cdist(np.array([[0, 0]]), crds, 'euclidean')
+        pts = np.meshgrid(np.array(coords[0]), np.array(coords[1]))
+        crds = np.vstack([pts[0].flatten("F"), pts[1].flatten("F")]).T
+        dist = sptl.distance.cdist(np.array([[0, 0]]), crds, "euclidean")
         dist = np.round(np.reshape(dist, (len(coords[0]), len(coords[1]))))
 
     elif dim == 3:
-        pts = np.meshgrid(np.array(coords[0]),
-                          np.array(coords[1]),
-                          np.array(coords[2]))
-        crds = np.vstack([pts[0].flatten('F'),
-                          pts[1].flatten('F'),
-                          pts[2].flatten('F')]).T
-        dist = sptl.distance.cdist(np.array([[0, 0, 0]]), crds, 'euclidean')
-        dist = np.round(np.reshape(dist,
-                                   (len(coords[0]),
-                                    len(coords[1]),
-                                    len(coords[2]))))
+        pts = np.meshgrid(np.array(coords[0]), np.array(coords[1]), np.array(coords[2]))
+        crds = np.vstack(
+            [pts[0].flatten("F"), pts[1].flatten("F"), pts[2].flatten("F")]
+        ).T
+        dist = sptl.distance.cdist(np.array([[0, 0, 0]]), crds, "euclidean")
+        dist = np.round(
+            np.reshape(dist, (len(coords[0]), len(coords[1]), len(coords[2])))
+        )
 
     else:
         print("error: unknown shape")
@@ -382,7 +469,7 @@ def transform_ND_to_1D(X, step=1, rmax="max", D=1, scale=0):
     count = np.delete(count, -1)
 
     for i in range(0, len(X_vec_r)):
-        if (count[i] != 0):
+        if count[i] != 0:
             X_vec_val[i] = X_vec_val[i] / count[i]
 
     if D != 1:
@@ -393,7 +480,7 @@ def transform_ND_to_1D(X, step=1, rmax="max", D=1, scale=0):
         X_vec_val = X_vec_val / phi
     elif scale == 2:
         phi = X_vec_val[0]
-        X_vec_val = (X_vec_val - phi**2) / (phi - phi**2)
+        X_vec_val = (X_vec_val - phi ** 2) / (phi - phi ** 2)
 
     retval = []
     retval.append(X_vec_val)
@@ -403,6 +490,7 @@ def transform_ND_to_1D(X, step=1, rmax="max", D=1, scale=0):
         retval.append(X_vec_r_scale)
 
     return retval
+
 
 ###############################################################################
 
@@ -436,21 +524,24 @@ def BW_morph_remove(img_array, phase):
     row, col = img_array.shape
     edges = np.zeros((row, col), dtype=int)
 
-    for i in range(1, row-1):
-        for j in range(1, col-1):
+    for i in range(1, row - 1):
+        for j in range(1, col - 1):
             if img_array[i, j] == phase:
-                if ((img_array[i+1, j] != img_array[i-1, j])
-                        or (img_array[i, j+1] != img_array[i, j-1])
-                        or (img_array[i+1, j+1] != img_array[i-1, j-1])
-                        or (img_array[i+1, j-1] != img_array[i-1, j+1])):
+                if (
+                    (img_array[i + 1, j] != img_array[i - 1, j])
+                    or (img_array[i, j + 1] != img_array[i, j - 1])
+                    or (img_array[i + 1, j + 1] != img_array[i - 1, j - 1])
+                    or (img_array[i + 1, j - 1] != img_array[i - 1, j + 1])
+                ):
                     edges[i, j] = 1
 
-    PIL_image = Image.fromarray((edges*255))
-    if PIL_image.mode != 'RGB':
-        PIL_image = PIL_image.convert('RGB')
+    PIL_image = Image.fromarray((edges * 255))
+    if PIL_image.mode != "RGB":
+        PIL_image = PIL_image.convert("RGB")
     PIL_image.show()
 
     return edges
+
 
 ##############################################################################
 
@@ -489,10 +580,13 @@ def find_edges(img_array, flag="dilate", it=1):
         struct = spim.generate_binary_structure(dim, dim)
     elif dim == 3:
         # struct = spim.generate_binary_structure(dim, dim)
-        struct = np.array([[[False,True,False],[True,True,True],[False,True,False]],
-               [[True,True,True],[True,True,True],[True,True,True]],
-               [[False,True,False],[True,True,True],[False,True,False]]])
-        
+        struct = np.array(
+            [
+                [[False, True, False], [True, True, True], [False, True, False]],
+                [[True, True, True], [True, True, True], [True, True, True]],
+                [[False, True, False], [True, True, True], [False, True, False]],
+            ]
+        )
 
     if flag == "erode":
         erode = spim.binary_erosion(img_array, struct, iterations=it)
@@ -505,6 +599,7 @@ def find_edges(img_array, flag="dilate", it=1):
 
 
 ##############################################################################
+
 
 def real_surface_stereological_approach(im):
     """
@@ -541,16 +636,17 @@ def real_surface_stereological_approach(im):
         coords = []
         for j in range(dim):
             if i == j:
-                coords.append(list(range(1, im_shape[j]))+[im_shape[j]-1])
+                coords.append(list(range(1, im_shape[j])) + [im_shape[j] - 1])
             else:
                 coords.append(list(range(0, im_shape[j])))
         im2 = im[np.ix_(*coords)]
-        rsa += np.sum(np.abs(im-im2))
+        rsa += np.sum(np.abs(im - im2))
 
     # for a specific surface area uncomment following code:
     # ssa /= np.prod(im_shape)
 
     return rsa
+
 
 ##############################################################################
 
@@ -596,13 +692,13 @@ def real_surface_extrapolation(im, max_iter=5):
         Mathematics, Springer, New York, NY, 703 pages. Pp. 285.
     """
     s = np.zeros(max_iter)
-    DeltaR = np.array(range(1, max_iter+1))
+    DeltaR = np.array(range(1, max_iter + 1))
 
     for i in range(len(DeltaR)):
         edges, dilate = find_edges(im, it=DeltaR[i])
         # s[i] = np.sum(edges)/DeltaR[i]/np.prod(im.shape)
-        s[i] = np.sum(edges)/DeltaR[i]
-        
+        s[i] = np.sum(edges) / DeltaR[i]
+
     x = np.ones((2, max_iter))
     x[1, :] = DeltaR
     x = x.T
@@ -614,6 +710,7 @@ def real_surface_extrapolation(im, max_iter=5):
     rsa = beta[0][0]
 
     return rsa
+
 
 ##############################################################################
 
@@ -655,20 +752,21 @@ def real_surface_differentiation_S2(img_array):
     # elements of the vector contributes to ssa.
     S2_ = transform_ND_to_1D(S2, rmax=2)
     # specific surface area is proportional to differentiation of the S2()
-    ssa = (S2_[0][0] - S2_[0][1])*4
+    ssa = (S2_[0][0] - S2_[0][1]) * 4
 
     im = img_array.astype(int)
     im_shape = im.shape
     # to obtain real surface area, the specific area is multiplied by the ROI
     # volume
-    rsa= ssa*np.prod(im_shape)
-    
+    rsa = ssa * np.prod(im_shape)
+
     return rsa
+
 
 ###############################################################################
 
 
-def C2_Discrete_Fourier_transform(img_array, larger=True):
+def C2_Discrete_Fourier_transform(img_array, larger=True, version=0):
     """
     Two-point cluster function evaluated by Discrete Fourier Transformation.
     Two-point cluster function C2() is a probability, that two randomly chosen
@@ -690,6 +788,10 @@ def C2_Discrete_Fourier_transform(img_array, larger=True):
         If larger is set to True, the C2_mat contains the whole statistical
         descriptor and the origin of the coordinate system, i.e. the one-point
         cluster function, is positioned in the middle of the output.
+    version : int, optional
+        Differentiates the distinct implementations of S2. The possible input 
+        is 0, 1, 2, or 3; the default is 0. For more info about implemented 
+        versions, see the documentation of S2.
     Returns
     -------
     C2_mat : float NumPy ND array
@@ -708,14 +810,18 @@ def C2_Discrete_Fourier_transform(img_array, larger=True):
     shape = img_array.shape
     img_array_01, num_clstrs = spim.label(img_array)
 
-    newshape = (np.array(shape)*2-1).astype(int)
+    newshape = (np.array(shape) * 2 - 1).astype(int)
     C2_mat = np.zeros(newshape)
 
     for i in range(num_clstrs):
-        A = img_array_01 == i+1
-        C2_mat += S2_Discrete_Fourier_transform(A, A, larger)
+        A = img_array_01 == i + 1
+        if version==0:
+            C2_mat += S2_Discrete_Fourier_transform(A, A, larger)
+        elif version in [1, 2, 3]:
+            C2_mat += S2_Discrete_Fourier_transform(A, larger=larger, version=version)
 
     return C2_mat
+
 
 ###############################################################################
 
@@ -765,8 +871,8 @@ def BresLineAlg(x0, y0, x1, y1):
         The list of points (each point is represented by one tuple) with the
         final Bresenham's path.
     """
-    dx = x1-x0
-    dy = y1-y0
+    dx = x1 - x0
+    dy = y1 - y0
 
     is_steep = abs(dx) < abs(dy)
     if is_steep:
@@ -781,13 +887,13 @@ def BresLineAlg(x0, y0, x1, y1):
         swap = True
         dx, dy = -dx, -dy
 
-    error = int(dx/2.0)
+    error = int(dx / 2.0)
     ystep = 1 if y0 < y1 else -1
 
     y = y0
     coords = []
 
-    for x in range(x0, x1+1):
+    for x in range(x0, x1 + 1):
         if is_steep:
             coords.append((y, x))
         else:
@@ -802,6 +908,7 @@ def BresLineAlg(x0, y0, x1, y1):
         coords.reverse()
 
     return coords
+
 
 #############################################################################
 
@@ -835,29 +942,29 @@ def Bresenham3D(x1, y1, z1, x2, y2, z2):
     dx = abs(x2 - x1)
     dy = abs(y2 - y1)
     dz = abs(z2 - z1)
-    if (x2 > x1):
+    if x2 > x1:
         xs = 1
     else:
         xs = -1
-    if (y2 > y1):
+    if y2 > y1:
         ys = 1
     else:
         ys = -1
-    if (z2 > z1):
+    if z2 > z1:
         zs = 1
     else:
         zs = -1
 
     # Driving axis is x-axis
-    if (dx >= dy and dx >= dz):
+    if dx >= dy and dx >= dz:
         p1 = 2 * dy - dx
         p2 = 2 * dz - dx
-        while (x1 != x2):
+        while x1 != x2:
             x1 += xs
-            if (p1 >= 0):
+            if p1 >= 0:
                 y1 += ys
                 p1 -= 2 * dx
-            if (p2 >= 0):
+            if p2 >= 0:
                 z1 += zs
                 p2 -= 2 * dx
             p1 += 2 * dy
@@ -865,15 +972,15 @@ def Bresenham3D(x1, y1, z1, x2, y2, z2):
             ListOfPoints.append((x1, y1, z1))
 
     # Driving axis is y-axis
-    elif (dy >= dx and dy >= dz):
+    elif dy >= dx and dy >= dz:
         p1 = 2 * dx - dy
         p2 = 2 * dz - dy
-        while (y1 != y2):
+        while y1 != y2:
             y1 += ys
-            if (p1 >= 0):
+            if p1 >= 0:
                 x1 += xs
                 p1 -= 2 * dy
-            if (p2 >= 0):
+            if p2 >= 0:
                 z1 += zs
                 p2 -= 2 * dy
             p1 += 2 * dx
@@ -884,18 +991,19 @@ def Bresenham3D(x1, y1, z1, x2, y2, z2):
     else:
         p1 = 2 * dy - dz
         p2 = 2 * dx - dz
-        while (z1 != z2):
+        while z1 != z2:
             z1 += zs
-            if (p1 >= 0):
+            if p1 >= 0:
                 y1 += ys
                 p1 -= 2 * dz
-            if (p2 >= 0):
+            if p2 >= 0:
                 x1 += xs
                 p2 -= 2 * dz
             p1 += 2 * dy
             p2 += 2 * dx
             ListOfPoints.append((x1, y1, z1))
     return ListOfPoints
+
 
 ###############################################################################
 
@@ -930,36 +1038,36 @@ def L2_generate_paths(row, col, imgrow, imgcol, step=1):
         Represents how many times is the path used in the medium.
     """
     paths = []
-    count = np.zeros((imgrow, 2*imgcol-1))
+    count = np.zeros((imgrow, 2 * imgcol - 1))
 
     issame = True if imgrow == row and imgcol == col else False
 
     # path generation - horizontal axis is constant
-    for j in (-col+1, col-1):
+    for j in (-col + 1, col - 1):
         for i in range(0, row, step):
             coords = BresLineAlg(0, 0, i, j)
             paths.append(coords)
 
             if issame:
                 for k in range(0, len(coords)):
-                    count[coords[k][0], coords[k][1]+col-1] += row*col
+                    count[coords[k][0], coords[k][1] + col - 1] += row * col
 
     # path generation - vertical axis is constant
-    for j in range(-col+2, col-1, step):
-        i = row-1
+    for j in range(-col + 2, col - 1, step):
+        i = row - 1
         coords = BresLineAlg(0, 0, i, j)
         paths.append(coords)
 
         if issame:
             for k in range(0, len(coords)):
-                count[coords[k][0], coords[k][1]+col-1] += row*col
+                count[coords[k][0], coords[k][1] + col - 1] += row * col
 
     if not issame:
         for i in paths:
-            count[[k[0] for k in i],
-                  [k[1]+imgcol-1 for k in i]] += imgrow*imgcol
+            count[[k[0] for k in i], [k[1] + imgcol - 1 for k in i]] += imgrow * imgcol
 
     return paths, count
+
 
 ##############################################################################
 
@@ -998,35 +1106,38 @@ def L2_generate_paths_3D(dep, row, col, imgdep, imgrow, imgcol, step=1):
         Represents how many times the path is used in the medium.
     """
     paths = []
-    count = np.zeros((imgdep, 2*imgrow-1, 2*imgcol-1))
+    count = np.zeros((imgdep, 2 * imgrow - 1, 2 * imgcol - 1))
 
     # path generation - axis 0 is constant:
-    for i in [0, dep-1]:
-        for j in range(-row+1, row, step):
-            for k in range(-col+1, col, step):
+    for i in [0, dep - 1]:
+        for j in range(-row + 1, row, step):
+            for k in range(-col + 1, col, step):
                 coords = Bresenham3D(0, 0, 0, i, j, k)
                 paths.append(coords)
 
     # path generation - axis 1 is constant:
-    for i in range(1, dep-1, step):
-        for j in [-row+1, row-1]:
-            for k in range(-col+1, col, step):
+    for i in range(1, dep - 1, step):
+        for j in [-row + 1, row - 1]:
+            for k in range(-col + 1, col, step):
                 coords = Bresenham3D(0, 0, 0, i, j, k)
                 paths.append(coords)
 
     # path generation - axis 2 is constant:
-    for i in range(1, dep-1, step):
-        for j in range(-row+2, row-1, step):
-            for k in [-col+1, col-1]:
+    for i in range(1, dep - 1, step):
+        for j in range(-row + 2, row - 1, step):
+            for k in [-col + 1, col - 1]:
                 coords = Bresenham3D(0, 0, 0, i, j, k)
                 paths.append(coords)
 
     for i in paths:
-        count[[k[0] for k in i],
-              [k[1]+imgrow-1 for k in i],
-              [k[2]+imgcol-1 for k in i]] += imgdep*imgrow*imgcol
+        count[
+            [k[0] for k in i],
+            [k[1] + imgrow - 1 for k in i],
+            [k[2] + imgcol - 1 for k in i],
+        ] += (imgdep * imgrow * imgcol)
 
     return paths, count
+
 
 ##############################################################################
 
@@ -1089,21 +1200,23 @@ def L2_direct_computation_2D(A, rowmax, colmax, phase=True, step=1):
     function. Computational Materials Science, 122, 102-117.
     """
     row, col = A.shape
-    L2_mat = np.zeros((row, 2*col-1))
+    L2_mat = np.zeros((row, 2 * col - 1))
 
     paths, count = L2_generate_paths(rowmax, colmax, row, col, step)
 
     numvecs = len(paths)
 
     for i in range(0, row):
-        for j in range(col, 2*col):
-            for k in range(0, numvecs):   # kth path out of row*col paths
+        for j in range(col, 2 * col):
+            for k in range(0, numvecs):  # kth path out of row*col paths
                 if A[i % row, j % col] == phase:
                     m = 0
-                    while(m < len(paths[k])
-                          and A[(i+paths[k][m][0]) % row,
-                                (j+paths[k][m][1]) % col] == phase):
-                        L2_mat[paths[k][m][0], paths[k][m][1]+col-1] += 1
+                    while (
+                        m < len(paths[k])
+                        and A[(i + paths[k][m][0]) % row, (j + paths[k][m][1]) % col]
+                        == phase
+                    ):
+                        L2_mat[paths[k][m][0], paths[k][m][1] + col - 1] += 1
                         m += 1
 
     if row == rowmax and col == colmax:
@@ -1113,17 +1226,18 @@ def L2_direct_computation_2D(A, rowmax, colmax, phase=True, step=1):
         # to be cut to matrix-size count
         idx = []
         idx.append(list(range(0, rowmax)))
-        idx.append(list(range(col-colmax, col+colmax-1)))
+        idx.append(list(range(col - colmax, col + colmax - 1)))
         L2_cut = L2_mat[np.ix_(*idx)]
         L2_cut = L2_cut / count[np.ix_(*idx)]
         L2_mat = copy.deepcopy(L2_cut)
 
     # L2 is symmetric, rotating the upper half part
     L22 = np.rot90(L2_mat, 2)
-    L22 = np.delete(L22, L22.shape[0]-1, 0)
+    L22 = np.delete(L22, L22.shape[0] - 1, 0)
     L2_mat = np.concatenate((L22, L2_mat), axis=0)
 
     return L2_mat
+
 
 ###############################################################################
 
@@ -1193,24 +1307,30 @@ def L2_direct_computation_3D(A, depmax, rowmax, colmax, phase=True, step=1):
     """
     dep, row, col = A.shape
 
-    L2_mat = np.zeros((dep, 2*row-1, 2*col-1))
-    paths, count = L2_generate_paths_3D(depmax, rowmax, colmax,
-                                        dep, row, col, step)
+    L2_mat = np.zeros((dep, 2 * row - 1, 2 * col - 1))
+    paths, count = L2_generate_paths_3D(depmax, rowmax, colmax, dep, row, col, step)
     numvecs = len(paths)
 
     for i in range(0, dep):
-        for j in range(row, 2*row):
-            for k in range(col, 2*col):
-                for m in range(0, numvecs):   # lth path out of all paths
+        for j in range(row, 2 * row):
+            for k in range(col, 2 * col):
+                for m in range(0, numvecs):  # lth path out of all paths
                     if A[i % dep, j % row, k % col] == phase:
                         n = 0
-                        while(n < len(paths[m])
-                              and A[(i+paths[m][n][0]) % dep,
-                                    (j+paths[m][n][1]) % row,
-                                    (k+paths[m][n][2]) % col] == phase):
-                            L2_mat[paths[m][n][0],
-                                   paths[m][n][1]+row-1,
-                                   paths[m][n][2]+col-1] += 1
+                        while (
+                            n < len(paths[m])
+                            and A[
+                                (i + paths[m][n][0]) % dep,
+                                (j + paths[m][n][1]) % row,
+                                (k + paths[m][n][2]) % col,
+                            ]
+                            == phase
+                        ):
+                            L2_mat[
+                                paths[m][n][0],
+                                paths[m][n][1] + row - 1,
+                                paths[m][n][2] + col - 1,
+                            ] += 1
                             n += 1
 
     if step == 1:
@@ -1221,8 +1341,8 @@ def L2_direct_computation_3D(A, depmax, rowmax, colmax, phase=True, step=1):
             #  has to be cut to matrix-size count
             idx = []
             idx.append(list(range(0, depmax)))
-            idx.append(list(range(row-rowmax, row+rowmax-1)))
-            idx.append(list(range(col-colmax, col+colmax-1)))
+            idx.append(list(range(row - rowmax, row + rowmax - 1)))
+            idx.append(list(range(col - colmax, col + colmax - 1)))
             L2_cut = L2_mat[np.ix_(*idx)]
             L2_cut = L2_cut / count[np.ix_(*idx)]
             L2_mat = copy.deepcopy(L2_cut)
@@ -1237,23 +1357,33 @@ def L2_direct_computation_3D(A, depmax, rowmax, colmax, phase=True, step=1):
 
         idx = []
         idx.append(list(range(0, depmax)))
-        idx.append(list(range(row-rowmax, row+rowmax-1)))
-        idx.append(list(range(col-colmax, col+colmax-1)))
+        idx.append(list(range(row - rowmax, row + rowmax - 1)))
+        idx.append(list(range(col - colmax, col + colmax - 1)))
         L2_cut = L2_mat[np.ix_(*idx)]
         L2_mat = copy.deepcopy(L2_cut)
 
     # L2 is symmetric, rotating the upper half part
     L22 = np.rot90(L2_mat, 2)
-    L22 = np.delete(L22, L22.shape[0]-1, 0)
+    L22 = np.delete(L22, L22.shape[0] - 1, 0)
     L2_mat = np.concatenate((L22, L2_mat), axis=0)
 
     return L2_mat
 
+
 ##############################################################################
 
 
-def L2_direct_computation_dll(A, depmax, rowmax, colmax, phase=True, step=1, 
-                              progress_flag=0, start_dep=0, stop_dep=-1):
+def L2_direct_computation_dll(
+    A,
+    depmax,
+    rowmax,
+    colmax,
+    phase=True,
+    step=1,
+    progress_flag=0,
+    start_dep=0,
+    stop_dep=-1,
+):
     """
     Lineal path function computed by brute force in C precompiled code.
     Lineal path function is a probability that a line segment lies in the same
@@ -1351,16 +1481,18 @@ def L2_direct_computation_dll(A, depmax, rowmax, colmax, phase=True, step=1,
     reconstruction of random microstructures using accelerated lineal path
     function. Computational Materials Science, 122, 102-117.
     """
-    
+
     if platform.system() == "Windows":
         path = pathlib.Path(__file__).parent.resolve()
-        lineal_path_c_path = ctypes.util.find_library(path/("lineal_path_c"))
+        lineal_path_c_path = ctypes.util.find_library(path / ("lineal_path_c"))
     elif platform.system() == "Linux":
-        path= os.getcwd()
+        path = os.getcwd()
         for root, dirs, files in os.walk(path):
             for name in files:
-                if name.endswith(".so") :
-                    lineal_path_c_path = ctypes.util.find_library("%s/%s" %(root, name))
+                if name.endswith(".so"):
+                    lineal_path_c_path = ctypes.util.find_library(
+                        "%s/%s" % (root, name)
+                    )
 
     if not lineal_path_c_path:
         print("Unable to find the specified library.")
@@ -1377,23 +1509,32 @@ def L2_direct_computation_dll(A, depmax, rowmax, colmax, phase=True, step=1,
         # rowmax, colmax = maxsize
         origdim = 2
         depmax = 2
-        A = np.concatenate((np.zeros(A.shape,dtype=int), A))
+        A = np.concatenate((np.zeros(A.shape, dtype=int), A))
     elif A.ndim == 3:
         # depmax, rowmax, colmax = maxsize
         origdim = 3
 
-    phase = phase+0  # converting from logical to int
+    phase = phase + 0  # converting from logical to int
     dep, row, col = A.shape
-    depL2, rowL2, colL2 = 2*dep-1, 2*row-1, 2*col-1
-    numel = (2*dep-1) * (2*row-1) * (2*col-1)
+    depL2, rowL2, colL2 = 2 * dep - 1, 2 * row - 1, 2 * col - 1
+    numel = (2 * dep - 1) * (2 * row - 1) * (2 * col - 1)
 
     Lineal_path = lineal_path_c.Lineal_path
-    Lineal_path.argtypes = [ctypes.c_int, ctypes.c_int, ctypes.c_int,
-                            ctypes.c_int, ctypes.c_int, ctypes.c_int,
-                            ctypes.c_int, ctypes.c_int,
-                            ctypes.POINTER(ctypes.c_int),
-                            ctypes.POINTER(ctypes.c_double),
-                            ctypes.c_int, ctypes.c_int, ctypes.c_int]
+    Lineal_path.argtypes = [
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.POINTER(ctypes.c_int),
+        ctypes.POINTER(ctypes.c_double),
+        ctypes.c_int,
+        ctypes.c_int,
+        ctypes.c_int,
+    ]
     Lineal_path.restype = None
 
     c_int_p = ctypes.POINTER(ctypes.c_int)
@@ -1408,16 +1549,28 @@ def L2_direct_computation_dll(A, depmax, rowmax, colmax, phase=True, step=1,
     LP_res = np.zeros(numel, dtype=ctypes.c_double)
     LP_res_p = LP_res.ctypes.data_as(c_double_p)
 
-    Lineal_path(depmax, rowmax, colmax, dep, row, col,
-                phase, step, img_array_flat_p, LP_res_p, 
-                progress_flag, start_dep, stop_dep)
+    Lineal_path(
+        depmax,
+        rowmax,
+        colmax,
+        dep,
+        row,
+        col,
+        phase,
+        step,
+        img_array_flat_p,
+        LP_res_p,
+        progress_flag,
+        start_dep,
+        stop_dep,
+    )
     L2_mat = np.reshape(LP_res, (depL2, rowL2, colL2))
 
     idx = []
     # idx.append(list(range(0, depmax)))
-    idx.append(list(range(dep-depmax, dep+depmax-1)))
-    idx.append(list(range(row-rowmax, row+rowmax-1)))
-    idx.append(list(range(col-colmax, col+colmax-1)))
+    idx.append(list(range(dep - depmax, dep + depmax - 1)))
+    idx.append(list(range(row - rowmax, row + rowmax - 1)))
+    idx.append(list(range(col - colmax, col + colmax - 1)))
     L2_cut = L2_mat[np.ix_(*idx)]
     L2_mat = copy.deepcopy(L2_cut)
 
@@ -1507,11 +1660,11 @@ def L2_direct_computation(A, maxsize, phase=True, step=1, method="py"):
 
         if len(maxsize) == 1:
             if A.ndim == 2:
-                L2_mat = L2_direct_computation_2D(A, maxsize, maxsize,
-                                                  phase, step)
+                L2_mat = L2_direct_computation_2D(A, maxsize, maxsize, phase, step)
             elif A.dim == 3:
-                L2_mat = L2_direct_computation_3D(A, maxsize, maxsize, maxsize,
-                                                  phase, step)
+                L2_mat = L2_direct_computation_3D(
+                    A, maxsize, maxsize, maxsize, phase, step
+                )
         elif len(maxsize) == 2:
             L2_mat = L2_direct_computation_2D(A, *maxsize, phase, step)
         elif len(maxsize) == 3:
@@ -1521,12 +1674,13 @@ def L2_direct_computation(A, maxsize, phase=True, step=1, method="py"):
 
     elif method == "dll":
         if len(maxsize) == 1:
-            L2_mat = L2_direct_computation_dll(A, maxsize, maxsize,
-                                                   maxsize, phase, step)
+            L2_mat = L2_direct_computation_dll(
+                A, maxsize, maxsize, maxsize, phase, step
+            )
 
         elif len(maxsize) == 2:
-            #TODO: This variant needs to be checked:
-            L2_mat = L2_direct_computation_dll(A, *(1,*maxsize), phase, step)
+            # TODO: This variant needs to be checked:
+            L2_mat = L2_direct_computation_dll(A, *(1, *maxsize), phase, step)
         elif len(maxsize) == 3:
             L2_mat = L2_direct_computation_dll(A, *maxsize, phase, step)
         else:
@@ -1538,10 +1692,9 @@ def L2_direct_computation(A, maxsize, phase=True, step=1, method="py"):
 ##############################################################################
 
 
-def shortest_distance_from_hydrate_to_clinker_surface(A, clinker_phase,
-                                                      hydrate_phase,
-                                                      flag="PBC",
-                                                      num_in_batch=400):
+def shortest_distance_from_hydrate_to_clinker_surface(
+    A, clinker_phase, hydrate_phase, flag="PBC", num_in_batch=400
+):
     """
     Shortest distance from hydrate to the clinker surface.
     This function finds the shortest distance from each pixel or voxel of the
@@ -1577,18 +1730,21 @@ def shortest_distance_from_hydrate_to_clinker_surface(A, clinker_phase,
 
     # if periodic boundary conditions are used:
     if flag == "PBC":
-        newshape = tuple(np.ones(A.ndim, dtype=int)*3)
+        newshape = tuple(np.ones(A.ndim, dtype=int) * 3)
         surface_mask = np.tile(surface_mask, newshape)
         hydrate_mask_new = np.zeros(surface_mask.shape)
 
         if A.ndim == 2:
-            hydrate_mask_new[A.shape[0]:A.shape[0]*2,
-                             A.shape[1]:A.shape[1]*2] = hydrate_mask
+            hydrate_mask_new[
+                A.shape[0] : A.shape[0] * 2, A.shape[1] : A.shape[1] * 2
+            ] = hydrate_mask
             hydrate_mask = hydrate_mask_new
         elif A.ndim == 3:
-            hydrate_mask_new[A.shape[0]:A.shape[0]*2,
-                             A.shape[1]:A.shape[1]*2,
-                             A.shape[2]:A.shape[2]*2] = hydrate_mask
+            hydrate_mask_new[
+                A.shape[0] : A.shape[0] * 2,
+                A.shape[1] : A.shape[1] * 2,
+                A.shape[2] : A.shape[2] * 2,
+            ] = hydrate_mask
             hydrate_mask = hydrate_mask_new
 
     # hudrates and clinker surface coordinates
@@ -1596,7 +1752,7 @@ def shortest_distance_from_hydrate_to_clinker_surface(A, clinker_phase,
     coords_surface = np.argwhere(surface_mask)
 
     num_hydrates = len(coords_hydrate)
-    num_batches = int(np.ceil(num_hydrates/num_in_batch))
+    num_batches = int(np.ceil(num_hydrates / num_in_batch))
 
     min_dists = np.zeros(num_hydrates)
 
@@ -1607,28 +1763,36 @@ def shortest_distance_from_hydrate_to_clinker_surface(A, clinker_phase,
     for i in range(num_batches):
         t = time.localtime()
         current_time = time.strftime("%H:%M:%S", t)
-        stdout.write("\r%d out of %d, %d %% done, local time: %s"
-                     % (i, num_batches, i/num_batches*100, current_time))
+        stdout.write(
+            "\r%d out of %d, %d %% done, local time: %s"
+            % (i, num_batches, i / num_batches * 100, current_time)
+        )
 
-        start = i*num_in_batch
-        if i < num_batches-1:
-            stop = (i+1)*num_in_batch
-        elif i == num_batches-1:
+        start = i * num_in_batch
+        if i < num_batches - 1:
+            stop = (i + 1) * num_in_batch
+        elif i == num_batches - 1:
             stop = num_hydrates
-        dists = sptl.distance.cdist(coords_hydrate[start:stop],
-                                    coords_surface, 'euclidean')
+        dists = sptl.distance.cdist(
+            coords_hydrate[start:stop], coords_surface, "euclidean"
+        )
         min_dists[start:stop] = np.amin(dists, axis=1)
 
     if num_batches != 0:
-       current_time = time.strftime("%H:%M:%S", t)
-       stdout.write("\r%d out of %d, %d %% done, local time: %s \n"
-                    % (i+1, num_batches, (i+1)/num_batches*100, current_time))
+        current_time = time.strftime("%H:%M:%S", t)
+        stdout.write(
+            "\r%d out of %d, %d %% done, local time: %s \n"
+            % (i + 1, num_batches, (i + 1) / num_batches * 100, current_time)
+        )
 
-    vals, bin_edges = np.histogram(min_dists,range(1,int(np.ceil(np.max(min_dists))+1)))
+    vals, bin_edges = np.histogram(
+        min_dists, range(1, int(np.ceil(np.max(min_dists)) + 1))
+    )
     # plt.hist(min_dists, range(1,int(np.ceil(np.max(min_dists))+1)), alpha = 0.5, color= 'b', label='no BC')
-    vals = np.append(vals,0)
-    
+    vals = np.append(vals, 0)
+
     return vals, bin_edges
+
 
 ##############################################################################
 
@@ -1672,8 +1836,8 @@ def chordLengthDensityFunction_orthogonal(A, phase=True):
         shape = (row, col)
 
         paths = []
-        paths.append(BresLineAlg(0, 0, 0, A.shape[1]-1))
-        paths.append(BresLineAlg(0, 0, A.shape[0]-1, 0))
+        paths.append(BresLineAlg(0, 0, 0, A.shape[1] - 1))
+        paths.append(BresLineAlg(0, 0, A.shape[0] - 1, 0))
 
         # in chords: 0th row for horizontal direction, 1st for vertical
         chords = np.zeros((2, np.amax(A.shape)))
@@ -1685,17 +1849,19 @@ def chordLengthDensityFunction_orthogonal(A, phase=True):
 
             t = time.localtime()
             current_time = time.strftime("%H:%M:%S", t)
-            stdout.write("\r%d out of %d paths, %d%% done, local time: %s"
-                         % (k, numvecs, k/numvecs*100, current_time))
+            stdout.write(
+                "\r%d out of %d paths, %d%% done, local time: %s"
+                % (k, numvecs, k / numvecs * 100, current_time)
+            )
 
-            dy = (path[-1, 0]-path[0, 0])
-            dx = (path[-1, 1]-path[0, 1])
+            dy = path[-1, 0] - path[0, 0]
+            dx = path[-1, 1] - path[0, 1]
 
-            assert abs(dx) == col-1 or abs(dy) == row-1
+            assert abs(dx) == col - 1 or abs(dy) == row - 1
 
-            if abs(dx) == col-1:
+            if abs(dx) == col - 1:
                 axis = 0
-            elif abs(dy) == row-1:
+            elif abs(dy) == row - 1:
                 axis = 1
 
             transnum = shape[axis]
@@ -1704,19 +1870,18 @@ def chordLengthDensityFunction_orthogonal(A, phase=True):
             for i in range(0, transnum):
 
                 path = np.array(paths[k])
-                path[:, axis] = path[:, axis]+i
+                path[:, axis] = path[:, axis] + i
                 numi, _ = path.shape
                 count = 1
 
                 for j in range(1, numi):
                     # if chord continues to the next pixel
-                    if (A[path[j-1, 0], path[j-1, 1]]
-                            == A[path[j, 0], path[j, 1]]):
+                    if A[path[j - 1, 0], path[j - 1, 1]] == A[path[j, 0], path[j, 1]]:
                         count += 1
                     else:
                         # if chord ends in the previous pixel and this pixel
                         # begins the new chord
-                        if A[path[j-1, 0], path[j-1, 1]] == phase:
+                        if A[path[j - 1, 0], path[j - 1, 1]] == phase:
                             chords[axis, count] += 1
                         count = 1
 
@@ -1727,21 +1892,23 @@ def chordLengthDensityFunction_orthogonal(A, phase=True):
                     count = 1
 
             total_num_chords = np.sum(chords[k])
-            CLD.append(chords[k]/total_num_chords)
+            CLD.append(chords[k] / total_num_chords)
 
         t = time.localtime()
         current_time = time.strftime("%H:%M:%S", t)
-        stdout.write("\r%d out of %d paths, %d%% done, local time: %s \n"
-                     % (k+1, numvecs, (k+1)/numvecs*100, current_time))
+        stdout.write(
+            "\r%d out of %d paths, %d%% done, local time: %s \n"
+            % (k + 1, numvecs, (k + 1) / numvecs * 100, current_time)
+        )
 
     elif A.ndim == 3:
         paths = []
         # horizontal path (path parallel to axis 0):
-        paths.append(Bresenham3D(0, 0, 0, A.shape[0]-1, 0, 0))
+        paths.append(Bresenham3D(0, 0, 0, A.shape[0] - 1, 0, 0))
         # vertical path (path parallel to axis 1):
-        paths.append(Bresenham3D(0, 0, 0, 0, A.shape[1]-1, 0))
+        paths.append(Bresenham3D(0, 0, 0, 0, A.shape[1] - 1, 0))
         # horizontal path (path parallel to axis 2):
-        paths.append(Bresenham3D(0, 0, 0, 0, 0, A.shape[2]-1))
+        paths.append(Bresenham3D(0, 0, 0, 0, 0, A.shape[2] - 1))
 
         chords = []
         CLD = []
@@ -1753,8 +1920,10 @@ def chordLengthDensityFunction_orthogonal(A, phase=True):
 
             t = time.localtime()
             current_time = time.strftime("%H:%M:%S", t)
-            stdout.write("\r%d out of %d paths, %d%% done, local time: %s"
-                         % (k, numvecs, k/numvecs*100, current_time))
+            stdout.write(
+                "\r%d out of %d paths, %d%% done, local time: %s"
+                % (k, numvecs, k / numvecs * 100, current_time)
+            )
 
             it = list({0, 1, 2} - {k})
 
@@ -1767,33 +1936,39 @@ def chordLengthDensityFunction_orthogonal(A, phase=True):
 
                     for j in range(1, path.shape[0]):
                         # if chord continues to the next pixel:
-                        if (A[path[j-1, 0], path[j-1, 1], path[j-1, 2]]
-                                == A[path[j, 0], path[j, 1], path[j, 2]]):
+                        if (
+                            A[path[j - 1, 0], path[j - 1, 1], path[j - 1, 2]]
+                            == A[path[j, 0], path[j, 1], path[j, 2]]
+                        ):
                             count += 1
                         else:
                             # if chord ends in the previous pixel and this
                             # pixel begins the new chord:
-                            if A[path[j-1, 0],
-                                 path[j-1, 1],
-                                 path[j-1, 2]] == phase:
-                                chords[k][count-1] += 1
+                            if (
+                                A[path[j - 1, 0], path[j - 1, 1], path[j - 1, 2]]
+                                == phase
+                            ):
+                                chords[k][count - 1] += 1
                             count = 1
 
                     if A[path[j, 0], path[j, 1], path[j, 2]] == phase:
                         if count == path.shape[0]:
                             j = count
-                        chords[k][count-1] += 1
+                        chords[k][count - 1] += 1
                         count = 1
 
             total_num_chords = np.sum(chords[k])
-            CLD.append(chords[k]/total_num_chords)
+            CLD.append(chords[k] / total_num_chords)
 
         t = time.localtime()
         current_time = time.strftime("%H:%M:%S", t)
-        stdout.write("\r%d out of %d paths, %d%% done, local time: %s \n"
-                     % (k+1, numvecs, (k+1)/numvecs*100, current_time))
+        stdout.write(
+            "\r%d out of %d paths, %d%% done, local time: %s \n"
+            % (k + 1, numvecs, (k + 1) / numvecs * 100, current_time)
+        )
 
     return CLD
+
 
 ##############################################################################
 
@@ -1824,52 +1999,59 @@ def particle_quantification(A, all_methods=False, printPhaseVals=False):
 
     dim = A.ndim
     struct = spim.generate_binary_structure(dim, dim)
-    
+
     particles, num_particles = spim.label(A, struct)
-    
-    out = np.zeros((num_particles,6))
-    
+
+    out = np.zeros((num_particles, 6))
+
     print("total number of particles: {}".format(num_particles))
-    
+
     # scan all particles and omit any particle with contact with medium edges
     for i in range(num_particles):
-        
-        particle = particles == i+1
-        out[i,0] = i
 
-        # specific surface by a stereological approach        
+        particle = particles == i + 1
+        out[i, 0] = i
+
+        # specific surface by a stereological approach
         if all_methods == True:
-            out[i,1] = real_surface_stereological_approach(particle)*np.prod(A.shape)
-        
+            out[i, 1] = real_surface_stereological_approach(particle) * np.prod(A.shape)
+
         # specific surface by an extrapolation
-        out[i,2] = real_surface_extrapolation(particle, max_iter=5)
-       
-        # compensate for a possible negative surface area obtained for small particles:
-        if out[i,2] <= 0: 
-            out[i,2] = (real_surface_stereological_approach(particle)*np.prod(A.shape) + 
-                        real_surface_differentiation_S2(particle)*np.prod(A.shape))/2
+        out[i, 2] = real_surface_extrapolation(particle, max_iter=5)
 
-        # specific surface by differentiation of the two-point probability 
-        # function        
+        # compensate for a possible negative surface area obtained for small particles:
+        if out[i, 2] <= 0:
+            out[i, 2] = (
+                real_surface_stereological_approach(particle) * np.prod(A.shape)
+                + real_surface_differentiation_S2(particle) * np.prod(A.shape)
+            ) / 2
+
+        # specific surface by differentiation of the two-point probability
+        # function
         if all_methods == True:
-            out[i,3] = real_surface_differentiation_S2(particle)*np.prod(A.shape)
-        
+            out[i, 3] = real_surface_differentiation_S2(particle) * np.prod(A.shape)
+
         # volume
-        out[i,4] = np.sum(particle)
-        
-        # diameter of an equivalent sphere volume 
-        out[i,5] = (out[i,4]*6/np.pi)**(1/3)
+        out[i, 4] = np.sum(particle)
+
+        # diameter of an equivalent sphere volume
+        out[i, 5] = (out[i, 4] * 6 / np.pi) ** (1 / 3)
 
         if printPhaseVals:
             if all_methods == True:
-                print("{} {} {} {} {} {}".format(out[i,0],out[i,1],out[i,2],out[i,3],out[i,4],out[i,5]))
+                print(
+                    "{} {} {} {} {} {}".format(
+                        out[i, 0], out[i, 1], out[i, 2], out[i, 3], out[i, 4], out[i, 5]
+                    )
+                )
             else:
-                print("{} {} {} {}".format(out[i,0],out[i,2],out[i,4],out[i,5]))
-    
-    if all_methods == False:           
-        out = np.delete(out,[1,3],axis=1)  
-    
+                print("{} {} {} {}".format(out[i, 0], out[i, 2], out[i, 4], out[i, 5]))
+
+    if all_methods == False:
+        out = np.delete(out, [1, 3], axis=1)
+
     return out
+
 
 ###############################################################################
 
@@ -1891,21 +2073,28 @@ def remove_edge_particles_clusters(A):
     struct = spim.generate_binary_structure(dim, dim)
     A_clstrs, num_clstrs = spim.label(A, struct)
     out = copy.deepcopy(A)
-    
-    for i in range(1,num_clstrs+1):
-        x,y,z = (A_clstrs == i).nonzero()
-        
-        if (any(x==0) or any(y==0) or any(z==0) or any(x==A.shape[0]-1) or 
-            any(y==A.shape[1]-1) or any(z==A.shape[2]-1)):
-            
+
+    for i in range(1, num_clstrs + 1):
+        x, y, z = (A_clstrs == i).nonzero()
+
+        if (
+            any(x == 0)
+            or any(y == 0)
+            or any(z == 0)
+            or any(x == A.shape[0] - 1)
+            or any(y == A.shape[1] - 1)
+            or any(z == A.shape[2] - 1)
+        ):
+
             out[A_clstrs == i] = False
-               
+
     return out
+
 
 ###############################################################################
 
-    
-def enlarged_array(origMatrix,thickness=5):
+
+def enlarged_array(origMatrix, thickness=5):
     """
     Inscribe the original array into a larger array.
     
@@ -1923,48 +2112,60 @@ def enlarged_array(origMatrix,thickness=5):
     enlargedMatrix : NumPy 3D array
           Enlarged original array.
     """
-    
-    enlargedMatrix=np.zeros((origMatrix.shape[0]+2*thickness, 
-                             origMatrix.shape[1]+2*thickness,
-                             origMatrix.shape[2]+2*thickness)) 
 
-    enlargedMatrix[thickness:-thickness,
-                   thickness:-thickness,
-                   thickness:-thickness]=origMatrix 
-    
+    enlargedMatrix = np.zeros(
+        (
+            origMatrix.shape[0] + 2 * thickness,
+            origMatrix.shape[1] + 2 * thickness,
+            origMatrix.shape[2] + 2 * thickness,
+        )
+    )
+
+    enlargedMatrix[
+        thickness:-thickness, thickness:-thickness, thickness:-thickness
+    ] = origMatrix
+
     return enlargedMatrix
+
 
 ###############################################################################
 
 
-def export2gnuplot(filename='', fileDescription='', storeArrays=(), 
-                   colDescription='', colFormat='%.3f'):
+def export2gnuplot(
+    filename="", fileDescription="", storeArrays=(), colDescription="", colFormat="%.3f"
+):
     """
     Save numpy arrays as columns into a textfile for plotting in gnuplot, 
     add header with detailed description.
     """
-    import time,sys
-    fullName= 'Data4plot_'+filename+'.txt'
-    file1=open(fullName, 'w' )      
-    file1.write('# File generated on '+time.strftime("%d.%m.%Y at %H:%M")+
-                ' using '+str(sys.argv[0])+'\n' )
-    file1.write('# File contains: %s \n' %(fileDescription))
-    file1.write('#\n' )
-    file1.write('# %s \n' % (colDescription))
-    file1.write('##########################################################\n')
-    np.savetxt(file1, np.column_stack(storeArrays), fmt=colFormat, 
-               delimiter='\t')
+    import time, sys
+
+    fullName = "Data4plot_" + filename + ".txt"
+    file1 = open(fullName, "w")
+    file1.write(
+        "# File generated on "
+        + time.strftime("%d.%m.%Y at %H:%M")
+        + " using "
+        + str(sys.argv[0])
+        + "\n"
+    )
+    file1.write("# File contains: %s \n" % (fileDescription))
+    file1.write("#\n")
+    file1.write("# %s \n" % (colDescription))
+    file1.write("##########################################################\n")
+    np.savetxt(file1, np.column_stack(storeArrays), fmt=colFormat, delimiter="\t")
     file1.close()
-    print('\n-> Data saved to file: "'+fullName+'"<-')
-    
+    print('\n-> Data saved to file: "' + fullName + '"<-')
+
     return 0
+
 
 ###############################################################################
 
 
-def collect_partial_frequency_matrices_and_transform_to_L2(dep, row, col, 
-                                                           starts, stops, 
-                                                           root_name="TEMP-L2_freq_mat_"):
+def collect_partial_frequency_matrices_and_transform_to_L2(
+    dep, row, col, starts, stops, root_name="TEMP-L2_freq_mat_"
+):
     """
     Collect partial frequency matrices and transform them into the lineal path function.
 
@@ -2002,26 +2203,26 @@ def collect_partial_frequency_matrices_and_transform_to_L2(dep, row, col,
     L2_mat : NumPy float 3D array
         The lineal path matrix function.
     """
-    
-    #num_of_files = len(starts)
-    mat = np.zeros((dep * (2*row-1) * (2*col-1)))
-    
+
+    # num_of_files = len(starts)
+    mat = np.zeros((dep * (2 * row - 1) * (2 * col - 1)))
+
     for i, start in enumerate(starts):
         name_file = root_name + str(start) + "-" + str(stops[i]) + ".dat"
         with open(name_file) as fid:
             temp_data = fid.readline()
-            mat += np.array(temp_data.split(),dtype="int")
-            
+            mat += np.array(temp_data.split(), dtype="int")
+
     with open("TEMP-L2_possible_path_occurences.dat") as fid:
-        temp_data = np.array(fid.readline().split(),dtype="int")
-        
+        temp_data = np.array(fid.readline().split(), dtype="int")
+
     L2_mat = mat / temp_data
-        
-    L2_mat = np.reshape(L2_mat,(dep,2*row-1,2*col-1))
-    
+
+    L2_mat = np.reshape(L2_mat, (dep, 2 * row - 1, 2 * col - 1))
+
     # L2 is symmetric, rotating the upper half part
     L22 = np.rot90(L2_mat, 2)
-    L22 = np.delete(L22, L22.shape[0]-1, 0)
+    L22 = np.delete(L22, L22.shape[0] - 1, 0)
     L2_mat = np.concatenate((L22, L2_mat), axis=0)
-    
+
     return L2_mat
