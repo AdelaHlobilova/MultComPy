@@ -44,7 +44,8 @@ Helper functions:
 ---    L2_direct_computation_2D(A, rowmax, colmax, phase=True, step=1)
 ---    L2_direct_computation_3D(A, depmax, rowmax, colmax, phase=True, step=1)
 ---    L2_direct_computation_dll(A, depmax, rowmax, colmax, phase=True, step=1, 
-                                  progress_flag=0, start_dep=0, stop_dep=-1)
+                                  progress_flag=0, start_dep=0, stop_dep=-1,
+                                  folder_path="")
 
 
 """
@@ -246,7 +247,7 @@ def S2_Discrete_Fourier_transform(img_array1, img_array2=None, larger=True, vers
         the cross-correlation function (a necessary condition is that
         img_array2 is opposite to img_array1 for a two-phase medium). Default
         is None. In this case, the function evaluates the auto-correlation 
-        function of the medium.
+        function of the medium. The default is None.
     larger : Boolean, optional
         The original size of the two-point probability function is larger than
         the original shape of the image (larger=True). If larger is set to
@@ -261,7 +262,7 @@ def S2_Discrete_Fourier_transform(img_array1, img_array2=None, larger=True, vers
     version : int, optional
         We have several implementations for the two-point probability function 
         during the temporary testing phase. All the versions provide identical 
-        outputs; however, the evaluation time differs. 
+        outputs; however, the evaluation time differs. The default is 0.
         *Version 0:* original code version, which does not differentiate between 
             the auto-correlation and cross-correlation functions. It, therefore, 
             evaluates the Fourier transform twice for the identical image in the
@@ -1383,6 +1384,7 @@ def L2_direct_computation_dll(
     progress_flag=0,
     start_dep=0,
     stop_dep=-1,
+    folder_path=""
 ):
     """
     Lineal path function computed by brute force in C precompiled code.
@@ -1445,10 +1447,14 @@ def L2_direct_computation_dll(
         greater than 1, each step-th path is generated. The more paths skipped,
         the less accurate the lineal path function result is. The default is 1.
     progress_flag : int, optional (possibilities 0 and 1)
-        If progress flag is 1, this function saves outputs with a frequency matrix
-        and a progress. If it equals to 0, no progress is printed out. Default
-        is 0. Note that, the printing out some information may slow down the 
-        evaluation process.
+        If progress flag is: 
+              - 0: no printed output data into files
+              - 1: prints the frequency matrix 
+              - 2: prints the frequency matrix and matrix with path occurrences
+                   (dependent only on the size of the medium)     
+              - 3: prints all the data as 1 and the progress of the L2 evaluation
+        Default is 0. Note that, the printing out some information may slow down 
+        the evaluation process.
     start : int, optional
         The lineal path function may take long time to evaluate on large media.
         Therefore, to parallelize it or evaluate it per partes, its computation
@@ -1466,6 +1472,8 @@ def L2_direct_computation_dll(
         on the whole medium and the lineal path is valid for the medium. Otherwise,
         the lineal path is incomplete and cannot be used for the whole medium but
         the part quantified by the start and stop.
+    folder_path : str, optional
+        The path to the folder where to store outputs. Default is "".
     
     Returns
     -------
@@ -1534,6 +1542,7 @@ def L2_direct_computation_dll(
         ctypes.c_int,
         ctypes.c_int,
         ctypes.c_int,
+        ctypes.c_char_p,
     ]
     Lineal_path.restype = None
 
@@ -1563,6 +1572,7 @@ def L2_direct_computation_dll(
         progress_flag,
         start_dep,
         stop_dep,
+        folder_path.encode('utf-8'),
     )
     L2_mat = np.reshape(LP_res, (depL2, rowL2, colL2))
 
@@ -2164,7 +2174,7 @@ def export2gnuplot(
 
 
 def collect_partial_frequency_matrices_and_transform_to_L2(
-    dep, row, col, starts, stops, root_name="TEMP-L2_freq_mat_"
+    dep, row, col, starts, stops, root_name="TEMP-L2_freq_mat_", folder_path=""
 ):
     """
     Collect partial frequency matrices and transform them into the lineal path function.
@@ -2197,7 +2207,9 @@ def collect_partial_frequency_matrices_and_transform_to_L2(
     root_name : string, optional
         The root of the file names where the partial frequency matrices are 
         stored. The default is "TEMP-L2_freq_mat_".
-
+    folder_path : string, optional
+        path to a folder where to store the outputs
+        
     Returns
     -------
     L2_mat : NumPy float 3D array
@@ -2208,12 +2220,12 @@ def collect_partial_frequency_matrices_and_transform_to_L2(
     mat = np.zeros((dep * (2 * row - 1) * (2 * col - 1)))
 
     for i, start in enumerate(starts):
-        name_file = root_name + str(start) + "-" + str(stops[i]) + ".dat"
+        name_file = folder_path + root_name + str(start) + "-" + str(stops[i]) + ".dat"
         with open(name_file) as fid:
             temp_data = fid.readline()
             mat += np.array(temp_data.split(), dtype="int")
 
-    with open("TEMP-L2_possible_path_occurences.dat") as fid:
+    with open(folder_path+"TEMP-L2_possible_path_occurences.dat") as fid:
         temp_data = np.array(fid.readline().split(), dtype="int")
 
     L2_mat = mat / temp_data

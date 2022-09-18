@@ -141,6 +141,7 @@ tic = time.time()
 # newcol = int(img_array.shape[1]/2)+1
 # L22 = mcp.L2_direct_computation(img_array, img_array.shape, method="dll") # evaluates whole lineal path
 L22 = mcp.L2_direct_computation(img_array, (newdep, newrow, newcol), method="dll") # evaluates half of the lineal path
+# L22 = mcp.L2_direct_computation_dll(img_array, newdep, newrow, newcol, progress_flag=2)
 L22_tr2 = mcp.transform_ND_to_1D(L22)
 toc = time.time()-tic
 print("**L2 evaluation from deskriptory.py done! eval. time = {}".format(toc))
@@ -169,12 +170,12 @@ tic = time.time()
 
 ## This version evaluates the whole lineal path
 L222_1 = mcp.L2_direct_computation_dll(img_array, *img_array.shape, phase=True, step=1, 
-                              progress_flag=1, start_dep=0, stop_dep=1)
+                              progress_flag=2, start_dep=0, stop_dep=1,folder_path="../test/")
 L222_2 = mcp.L2_direct_computation_dll(img_array, *img_array.shape, phase=True, step=1, 
-                              progress_flag=1, start_dep=1, stop_dep=2)
+                              progress_flag=1, start_dep=1, stop_dep=2,folder_path="../test/")
 L222_3 = mcp.L2_direct_computation_dll(img_array, *img_array.shape, phase=True, step=1, 
-                              progress_flag=1, start_dep=2, stop_dep=3)
-L222 = mcp.collect_partial_frequency_matrices_and_transform_to_L2(*img_array.shape, [0,1,2], [1,2,3])
+                              progress_flag=1, start_dep=2, stop_dep=3,folder_path="../test/")
+L222 = mcp.collect_partial_frequency_matrices_and_transform_to_L2(*img_array.shape, [0,1,2], [1,2,3],folder_path="../test/")
 
 L222_tr = mcp.transform_ND_to_1D(L222)
 toc = time.time()-tic
