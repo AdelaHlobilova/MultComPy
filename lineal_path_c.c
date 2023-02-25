@@ -287,7 +287,7 @@ void L2_direct_computation(int *A, int dep, int row, int col, int phase, int** p
     /* INITIALIZATION */
     int i, j, k, l, m, x, y, z, coord_A, coord_L2, shift;
     int dim = 3;
-    int *L2_mat;
+    long long *L2_mat;
     double temp;
     int count = 0;
     double perc;
@@ -311,7 +311,7 @@ void L2_direct_computation(int *A, int dep, int row, int col, int phase, int** p
 
     /* ALLOCATION OF THE REQUESTED MEMORY FOR ARRAYS */
     int count_voxels_half = dep * (2*row-1) * (2*col-1);
-    L2_mat = (int*) calloc(count_voxels_half, sizeof(int));
+    L2_mat = (long long*) calloc(count_voxels_half, sizeof(long long));
 
     /* SIMPLIFICATION FOR A USER*/
     if (stop_dep == -1) {stop_dep = dep; }
@@ -333,7 +333,7 @@ void L2_direct_computation(int *A, int dep, int row, int col, int phase, int** p
                             coord_L2 = offset(x, y+row-1, z+col-1, 2*row-1, 2*col-1);
                             L2_mat[coord_L2]++;
                             if (L2_mat[coord_L2] < 0){
-                                printf("%d is negative! i=%d, j=%d, k=%d", L2_mat[coord_L2], i, j, k);
+                                printf("%lld is negative! i=%d, j=%d, k=%d", L2_mat[coord_L2], i, j, k);
                             }
                             m++;
 
@@ -385,7 +385,7 @@ void L2_direct_computation(int *A, int dep, int row, int col, int phase, int** p
         }
 
         for (l = 0; l<count_voxels_half; l++){
-            fprintf(fptr4, "%d ",L2_mat[l]);
+            fprintf(fptr4, "%lld ",L2_mat[l]);
         }
         fprintf(fptr4, "\ndep: %d, row: %d, col: %d\n",i,j,k);
         fclose(fptr4);
