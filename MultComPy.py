@@ -1660,11 +1660,8 @@ def L2_direct_computation(A, maxsize, phase=True, step=1, method="py"):
     L2_mat : NumPy float array
         The lineal path matrix function.
     """
-    try:
-        A.ndim == 2 or A.ndim == 3
-    except Exception:
-        print(Exception)
-        return print("Medium has to be 2D or 3D.")
+    if A.ndim not in (2, 3):
+        raise ValueError("Medium has to be 2D or 3D.")
 
     if method == "py":
 
@@ -1675,12 +1672,15 @@ def L2_direct_computation(A, maxsize, phase=True, step=1, method="py"):
                 L2_mat = L2_direct_computation_3D(
                     A, maxsize, maxsize, maxsize, phase, step
                 )
+
         elif len(maxsize) == 2:
             L2_mat = L2_direct_computation_2D(A, *maxsize, phase, step)
+
         elif len(maxsize) == 3:
             L2_mat = L2_direct_computation_3D(A, *maxsize, phase, step)
+
         else:
-            return print("maxsize can only have 1 to 3 elements.")
+            raise ValueError("maxsize must have 1 to 3 elements")
 
     elif method == "dll":
         if len(maxsize) == 1:
@@ -1694,7 +1694,11 @@ def L2_direct_computation(A, maxsize, phase=True, step=1, method="py"):
         elif len(maxsize) == 3:
             L2_mat = L2_direct_computation_dll(A, *maxsize, phase, step)
         else:
-            return print("maxsize can only have 1 to 3 elements.")
+            raise ValueError("maxsize must have 1 to 3 elements")
+        
+    else:
+        raise ValueError("method must be 'py' or 'dll'")
+        
 
     return L2_mat
 
