@@ -1671,7 +1671,7 @@ def L2_direct_computation(A, maxsize, phase=True, step=1, method="py"):
         if len(maxsize) == 1:
             if A.ndim == 2:
                 L2_mat = L2_direct_computation_2D(A, maxsize, maxsize, phase, step)
-            elif A.dim == 3:
+            elif A.ndim == 3:
                 L2_mat = L2_direct_computation_3D(
                     A, maxsize, maxsize, maxsize, phase, step
                 )
