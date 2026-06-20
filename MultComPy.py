@@ -2283,6 +2283,10 @@ def _validate_medium(img_array, allowed_dims=(2, 3)):
     # check for correct type
     if not isinstance(img_array, np.ndarray):
         raise TypeError("Input must be a NumPy array.")
+
+    # check for an empty array first so it gets a clear error even if ndim is unexpected
+    if img_array.size == 0:
+        raise ValueError("Input array is empty.")
         
     # check for allowed dimensions    
     if img_array.ndim not in allowed_dims:
@@ -2291,7 +2295,3 @@ def _validate_medium(img_array, allowed_dims=(2, 3)):
     # check for NaN or Inf values    
     if np.isnan(img_array).any() or np.isinf(img_array).any():
         raise ValueError("Input array contains forbidden values (NaN or Inf).")
-    
-    # check for an empty array 
-    if img_array.size == 0:
-        raise ValueError("Input array is empty.")

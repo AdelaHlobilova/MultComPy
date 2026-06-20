@@ -253,3 +253,46 @@ def test_s2_auto_plus_complement_equals_volume_fraction(shape, axis):
         auto_fft = _s2_fft(medium, medium if version == 0 else None, larger=False, version=version)
         cross_fft = _s2_fft(medium, complement, larger=False, version=version)
         np.testing.assert_allclose(auto_fft + cross_fft, phi, atol=1e-12, rtol=1e-12)
+
+
+@pytest.mark.parametrize("shape", [
+    (6, 6),       # 2D test
+    (4, 4, 6)     # 3D test
+])
+def test_s2_fft_matches_brute_force_on_small_matrices(shape):
+    """Verify that the fastest FFT implementation (version 3) matches the brute force computation for 2D and 3D."""
+    np.random.seed(42)
+    small_medium = np.random.choice([True, False], size=shape, p=[0.3, 0.7])
+
+    # Brute force
+    s2_brute = mcp.S2_direct_computation(small_medium, small_medium, larger=True)
+
+    # FFT (version 3)
+    s2_fft = mcp.S2_Discrete_Fourier_transform(small_medium, small_medium, larger=True, version=3)
+
+    # Compare results
+    assert s2_brute.shape == s2_fft.shape
+    np.testing.assert_allclose(s2_fft, s2_brute, atol=1e-12, rtol=1e-12)
+
+
+@pytest.mark.parametrize("shape", [(10, 10), (6, 6, 6)])
+def test_s2_peak_location_depends_on_larger_parameter(shape):
+    """Check that the 'larger' parameter correctly shifts the origin (maximum value) of the S2 matrix."""
+    np.random.seed(42)
+    # Generate a random array to ensure we have a clear volume fraction
+    medium = np.random.choice([True, False], size=shape, p=[0.4, 0.6])
+    
+    # 1. Test for larger=False (maximum should be at index 0,0 / 0,0,0)
+    s2_small = mcp.S2_Discrete_Fourier_transform(medium, larger=False, version=3)
+    peak_idx_small = np.unravel_index(np.argmax(s2_small), s2_small.shape)
+    expected_small_origin = (0,) * len(shape)
+    
+    assert peak_idx_small == expected_small_origin
+    
+    # 2. Test for larger=True (maximum should be at the center)
+    s2_large = mcp.S2_Discrete_Fourier_transform(medium, larger=True, version=3)
+    peak_idx_large = np.unravel_index(np.argmax(s2_large), s2_large.shape)
+    # Center is the original size minus 1
+    expected_large_origin = tuple(s - 1 for s in shape)
+    
+    assert peak_idx_large == expected_large_origin
