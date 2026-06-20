@@ -18,7 +18,7 @@ import matplotlib.pyplot as plt
 from matplotlib.ticker import (MultipleLocator, AutoMinorLocator)
 from collections import Counter
 import time
-import GooseEYE
+# import GooseEYE
 import matplotlib as mpl
 from matplotlib.ticker import LinearLocator
 import matplotlib.cm as cm
@@ -28,8 +28,8 @@ import ctypes, ctypes.util
 import copy
 from matplotlib.image import NonUniformImage
 
-import porespy as ps
-ps.visualization.set_mpl_style()
+# import porespy as ps
+# ps.visualization.set_mpl_style()
 
 
 img_array = np.array([[[0,0,0,0,0,0,0,0,0,0],
@@ -71,7 +71,7 @@ img_array = np.array([[[0,0,0,0,0,0,0,0,0,0],
 # =============================================================================
 
 S1 = np.sum(img_array)/np.prod(np.array(img_array.shape))
-print("Volume fraction is {}".format(S1))
+print(f"Volume fraction is {S1}")
 
 
 # =============================================================================
@@ -124,7 +124,7 @@ def image_final():
 # =============================================================================
 # Lineal path function (L2)
 # =============================================================================
-print("Computing L2 from deskriptory.py (Python) ....")
+print("Computing L2 (Python) ....")
 tic = time.time()
 newdep = int(img_array.shape[0]/2)+1
 newrow = int(img_array.shape[1]/2)+1
@@ -133,9 +133,9 @@ newcol = int(img_array.shape[2]/2)+1
 L2 = mcp.L2_direct_computation(img_array, (newdep, newrow, newcol)) # evaluates half of the lineal path
 L2_tr2 = mcp.transform_ND_to_1D(L2)
 toc = time.time()-tic
-print("**L2 evaluation from deskriptory.py done! eval. time = {}".format(toc))
+print(f"**L2 evaluation done! eval. time = {toc:.4f}")
 
-print("Computing L2 from deskriptory.py (C) ....")
+print("Computing L2 (C) ....")
 tic = time.time()
 # newrow = int(img_array.shape[0]/2)+1
 # newcol = int(img_array.shape[1]/2)+1
@@ -144,16 +144,16 @@ L22 = mcp.L2_direct_computation(img_array, (newdep, newrow, newcol), method="dll
 # L22 = mcp.L2_direct_computation_dll(img_array, newdep, newrow, newcol, progress_flag=2)
 L22_tr2 = mcp.transform_ND_to_1D(L22)
 toc = time.time()-tic
-print("**L2 evaluation from deskriptory.py done! eval. time = {}".format(toc))
+print(f"**L2 evaluation done! eval. time = {toc:.4f}")
 
-print("Computing L2 from GooseEYE ....")
-tic = time.time()
-L2_GE = GooseEYE.L(img_array.shape, img_array) # evaluates half of the lineal path
-# newshape = tuple((np.array(img_array.shape)*2-1).astype(int))
-# L2_GE = GooseEYE.L(newshape, img_array) # evaluates whole lineal path
-toc = time.time()-tic
-L2GE_tr = mcp.transform_ND_to_1D(L2_GE)
-print("**L2 evaluation from GooseEYE done! eval. time = {}".format(toc))
+# print("Computing L2 from GooseEYE ....")
+# tic = time.time()
+# L2_GE = GooseEYE.L(img_array.shape, img_array) # evaluates half of the lineal path
+# # newshape = tuple((np.array(img_array.shape)*2-1).astype(int))
+# # L2_GE = GooseEYE.L(newshape, img_array) # evaluates whole lineal path
+# toc = time.time()-tic
+# L2GE_tr = mcp.transform_ND_to_1D(L2_GE)
+# print("**L2 evaluation from GooseEYE done! eval. time = {}".format(toc))
 
 print("Computing L2 from MultComPy.py (dll, per partes) ....")
 tic = time.time()
@@ -179,15 +179,15 @@ L222 = mcp.collect_partial_frequency_matrices_and_transform_to_L2(*img_array.sha
 
 L222_tr = mcp.transform_ND_to_1D(L222)
 toc = time.time()-tic
-print("**L2 evaluation from MultComPy.py (dll, per partes) done! eval. time = {}".format(toc))
+print(f"**L2 evaluation (dll, per partes) done! eval. time = {toc:.4f}")
 
 
 
 # graphical representation of the results
 ax = image_init("Lineal path function")
 
-ax.plot(L2GE_tr[1], L2GE_tr[0], '-', color='r',
-        label="L2 GooseEYE", linewidth=5)
+# ax.plot(L2GE_tr[1], L2GE_tr[0], '-', color='r',
+#         label="L2 GooseEYE", linewidth=5)
 
 # ax.plot(L2_tr[1], L2_tr[0], '-*', color='y', markersize=5,
 #         label="L2 MultComPy (cut)", linewidth=1)

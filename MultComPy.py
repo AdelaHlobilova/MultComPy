@@ -747,7 +747,7 @@ def real_surface_differentiation_S2(img_array):
     6087-6099 (1995) https://doi.org/10.1063/1.359134
     """
 
-    _validate_medium(im)
+    _validate_medium(img_array)
 
     S2 = S2_Discrete_Fourier_transform(img_array, img_array)
     # After transformation from matrix into vector notation, only first two
