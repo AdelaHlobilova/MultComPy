@@ -51,6 +51,7 @@ Helper functions:
 """
 
 from PIL import Image
+from PIL.IcnsImagePlugin import im
 import numpy as np
 import time
 import scipy.ndimage as spim
@@ -150,12 +151,12 @@ def S2_direct_computation(img_array1, img_array2, larger=True):
         function, refer to transform_ND_to_1D() (which only works for the
         statistically homogeneous and isotropic media).
     """
+
+    _validate_medium(img_array1)
+    _validate_medium(img_array2)
+
     if img_array1.shape != img_array2.shape:
-        print(
-            """Images must have identical dimensions (depths, rows, columns).
-              Terminating without evaluations."""
-        )
-        return "Error"
+        raise ValueError("Images must have identical dimensions (depths, rows, columns).")
 
     original_ndim = img_array1.ndim
 
@@ -297,15 +298,26 @@ def S2_Discrete_Fourier_transform(img_array1, img_array2=None, larger=True, vers
         function, refer to transform_ND_to_1D() (which only works for the
         statistically homogeneous and isotropic media).
     """
+
+    if version not in (0, 1, 2, 3):
+        raise ValueError("Version must be 0, 1, 2, or 3.")
+
+    _validate_medium(img_array1)
+
+    if img_array2 is None:
+            # Verze 0 needs two arrays, verze 1,2,3 only one array for auto-correlation function
+            if version == 0:
+                img_array2 = img_array1
+    else:
+        # If the second array is provided, validate it and check that the shapes match
+        _validate_medium(img_array2)
+        if img_array1.shape != img_array2.shape:
+            raise ValueError("Images must have identical dimensions (depths, rows, columns).")
+
+
     cum = np.prod(np.array(img_array1.shape))    
     
     if version == 0:
-        if img_array1.shape != img_array2.shape:
-            print(
-                """Images must have identical dimensions (depths, rows, columns).
-                  Terminating without evaluations."""
-            )
-            return "Error"
 
         C = np.fft.fftn(img_array1)
         D = np.fft.fftn(img_array2)
@@ -317,31 +329,19 @@ def S2_Discrete_Fourier_transform(img_array1, img_array2=None, larger=True, vers
     
         E = np.real(E)
         S2_ND = np.real((np.fft.ifftn(E)) / cum)
+
     elif version == 1:
         if img_array2 is None:
             C = np.fft.fftn(img_array1)
             S2_ND = np.real((np.fft.ifftn(np.real(C * np.conj(C)))) / cum)
-        else:
-            if img_array1.shape != img_array2.shape:
-                print(
-                    """Images must have identical dimensions (depths, rows, columns).
-                      Terminating without evaluations."""
-                )
-                return "Error"
-            
+        else:            
             S2_ND = np.real((np.fft.ifftn(np.real(np.fft.fftn(img_array1) * np.conj(np.fft.fftn(img_array2))))) / cum)    
+
     elif version == 2:
         if img_array2 is None:
             C = sp_ft.rfftn(img_array1)
             E = C * np.conj(C)
         else:    
-            if img_array1.shape != img_array2.shape:
-                print(
-                    """Images must have identical dimensions (depths, rows, columns).
-                      Terminating without evaluations."""
-                )
-                return "Error"
-    
             C = sp_ft.rfftn(img_array1)
             D = sp_ft.rfftn(img_array2)
             E = C * np.conj(D)
@@ -351,19 +351,13 @@ def S2_Discrete_Fourier_transform(img_array1, img_array2=None, larger=True, vers
             print("warning: max. abs. value of imag. part in FFTN is :", test)
     
         E = np.real(E)
-        S2_ND = np.real((sp_ft.irfftn(E)) / cum)    
+        S2_ND = np.real((sp_ft.irfftn(E)) / cum)   
+
     elif version == 3:
         if img_array2 is None:
             C = sp_ft.rfftn(img_array1)
             S2_ND = np.real((sp_ft.irfftn(np.real(C * np.conj(C)))) / cum) 
-        else:    
-            if img_array1.shape != img_array2.shape:
-                print(
-                    """Images must have identical dimensions (depths, rows, columns).
-                      Terminating without evaluations."""
-                )
-                return "Error"
-    
+        else:        
             # S2_ND = np.real((sp_ft.irfftn(np.real(sp_ft.rfftn(img_array1) * np.conj(sp_ft.rfftn(img_array2))))) / cum)  
             S2_ND = (sp_ft.irfftn(sp_ft.rfftn(img_array1) * np.conj(sp_ft.rfftn(img_array2)))) / cum
 
@@ -457,8 +451,7 @@ def transform_ND_to_1D(X, step=1, rmax="max", D=1, scale=0):
         )
 
     else:
-        print("error: unknown shape")
-        return None
+        raise ValueError(f"Unknown shape: Input array must be 2D or 3D, but got {dim}D.")
 
     for i in range(len(X_vec_r)):
         temp = X_cut[dist == i]
@@ -627,6 +620,9 @@ def real_surface_stereological_approach(im):
     measured by microtomography to different image processing algorithms.
     The Cryosphere Discussions. 1-28. 10.5194/tc-2015-217.
     """
+
+    _validate_medium(im)
+
     im = im.astype(int)
     im_shape = im.shape
     dim = im.ndim
@@ -692,6 +688,9 @@ def real_surface_extrapolation(im, max_iter=5):
         Microstructure and Macroscopic Properties. Interdisciplinary Applied
         Mathematics, Springer, New York, NY, 703 pages. Pp. 285.
     """
+
+    _validate_medium(im)
+
     s = np.zeros(max_iter)
     DeltaR = np.array(range(1, max_iter + 1))
 
@@ -748,6 +747,9 @@ def real_surface_differentiation_S2(img_array):
     quantities from a digitized medium", Journal of Applied Physics 77,
     6087-6099 (1995) https://doi.org/10.1063/1.359134
     """
+
+    _validate_medium(im)
+
     S2 = S2_Discrete_Fourier_transform(img_array, img_array)
     # After transformation from matrix into vector notation, only first two
     # elements of the vector contributes to ssa.
@@ -808,6 +810,8 @@ def C2_Discrete_Fourier_transform(img_array, larger=True, version=0):
         cluster function, refer to transform_ND_to_1D() (which only works for
         the statistically homogeneous and isotropic media).
     """
+    _validate_medium(img_array)
+
     shape = img_array.shape
     img_array_01, num_clstrs = spim.label(img_array)
 
@@ -1200,6 +1204,9 @@ def L2_direct_computation_2D(A, rowmax, colmax, phase=True, step=1):
     reconstruction of random microstructures using accelerated lineal path
     function. Computational Materials Science, 122, 102-117.
     """
+
+    _validate_medium(A)
+
     row, col = A.shape
     L2_mat = np.zeros((row, 2 * col - 1))
 
@@ -1306,6 +1313,9 @@ def L2_direct_computation_3D(A, depmax, rowmax, colmax, phase=True, step=1):
     reconstruction of random microstructures using accelerated lineal path
     function. Computational Materials Science, 122, 102-117.
     """
+
+    _validate_medium(A)
+
     dep, row, col = A.shape
 
     L2_mat = np.zeros((dep, 2 * row - 1, 2 * col - 1))
@@ -1490,6 +1500,8 @@ def L2_direct_computation_dll(
     function. Computational Materials Science, 122, 102-117.
     """
 
+    _validate_medium(A)
+
     if platform.system() == "Windows":
         path = pathlib.Path(__file__).parent.resolve()
         lineal_path_c_path = ctypes.util.find_library(path / ("lineal_path_c"))
@@ -1502,15 +1514,24 @@ def L2_direct_computation_dll(
                         "%s/%s" % (root, name)
                     )
 
+
     if not lineal_path_c_path:
-        print("Unable to find the specified library.")
-        sys.exit()
+        raise FileNotFoundError("Unable to find the specified lineal_path_c library.")
 
     try:
         lineal_path_c = ctypes.CDLL(lineal_path_c_path)
-    except OSError:
-        print("Unable to load the system C library")
-        sys.exit()
+    except OSError as e:
+        raise OSError("Unable to load the system C library.") from e
+
+    # if not lineal_path_c_path:
+    #     print("Unable to find the specified library.")
+    #     sys.exit()
+    # 
+    # try:
+    #     lineal_path_c = ctypes.CDLL(lineal_path_c_path)
+    # except OSError:
+    #     print("Unable to load the system C library")
+    #     sys.exit()
 
     if A.ndim == 2:
         A = np.expand_dims(A, axis=0)
@@ -1660,11 +1681,10 @@ def L2_direct_computation(A, maxsize, phase=True, step=1, method="py"):
     L2_mat : NumPy float array
         The lineal path matrix function.
     """
-    if A.ndim not in (2, 3):
-        raise ValueError("Medium has to be 2D or 3D.")
+
+    _validate_medium(A)
 
     if method == "py":
-
         if len(maxsize) == 1:
             if A.ndim == 2:
                 L2_mat = L2_direct_computation_2D(A, maxsize, maxsize, phase, step)
@@ -1738,6 +1758,9 @@ def shortest_distance_from_hydrate_to_clinker_surface(
                              in A)
         Minimum distances from hydrates to clinker surface.
     """
+
+    _validate_medium(A)
+
     hydrate_mask = A == hydrate_phase
     clinker_mask = A == clinker_phase
     surface_mask, xx = find_edges(clinker_mask, flag="erode")
@@ -1845,6 +1868,9 @@ def chordLengthDensityFunction_orthogonal(A, phase=True):
         by all chords in the medium. CLD contains two or three lists depending
         on the number of dimensions.
     """
+
+    _validate_medium(A)
+
     if A.ndim == 2:
         row, col = A.shape
         shape = (row, col)
@@ -2011,6 +2037,8 @@ def particle_quantification(A, all_methods=False, printPhaseVals=False):
           equivalent sphere volume.
     """
 
+    _validate_medium(A)
+
     dim = A.ndim
     struct = spim.generate_binary_structure(dim, dim)
 
@@ -2082,6 +2110,9 @@ def remove_edge_particles_clusters(A):
     out : Boolean NumPy 3D array
           A cleaned from all particles touching any edge of the media.
     """
+
+    _validate_medium(A)
+
     dim = A.ndim
 
     struct = spim.generate_binary_structure(dim, dim)
@@ -2126,6 +2157,8 @@ def enlarged_array(origMatrix, thickness=5):
     enlargedMatrix : NumPy 3D array
           Enlarged original array.
     """
+
+    _validate_medium(origMatrix)
 
     enlargedMatrix = np.zeros(
         (
@@ -2242,3 +2275,26 @@ def collect_partial_frequency_matrices_and_transform_to_L2(
     L2_mat = np.concatenate((L22, L2_mat), axis=0)
 
     return L2_mat
+
+
+###############################################################################
+
+
+def _validate_medium(img_array, allowed_dims=(2, 3)):
+    """Universal validation of input data before heavy computations."""
+
+    # check for correct type
+    if not isinstance(img_array, np.ndarray):
+        raise TypeError("Input must be a NumPy array.")
+        
+    # check for allowed dimensions    
+    if img_array.ndim not in allowed_dims:
+        raise ValueError(f"Input array must have dimensions {allowed_dims}, but got {img_array.ndim}.")
+        
+    # check for NaN or Inf values    
+    if np.isnan(img_array).any() or np.isinf(img_array).any():
+        raise ValueError("Input array contains forbidden values (NaN or Inf).")
+    
+    # check for an empty array 
+    if img_array.size == 0:
+        raise ValueError("Input array is empty.")
