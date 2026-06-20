@@ -38,8 +38,7 @@ img_array = np.array(img_file_BW)
 phase = True
 
 S1 = np.sum(img_array)/np.prod(np.array(img_array.shape))
-print("Volume fraction of phase {} is {:.4f}.".format(phase, S1))
-
+print(f"Volume fraction of phase {phase} is {S1:.4f}.")
 
 # =============================================================================
 # Graptical representation of the results
@@ -99,8 +98,7 @@ S2 = mcp.S2_Discrete_Fourier_transform(img_array, img_array)
 
 S2_tr = mcp.transform_ND_to_1D(S2, rmax=int(len(img_array)/2))
 toc = time.time() - tic
-print("**S2 evaluation from MultComPy done! Elapsed time is {:.4f} seconds."
-      .format(toc))
+print(f"**S2 evaluation from MultComPy done! Elapsed time is {toc:.4f} seconds.")
 
 #  graphical representation of the results
 ax = image_init()
@@ -128,8 +126,7 @@ print("... surface - surface correlation function ...")
 S2_ss = mcp.S2_Discrete_Fourier_transform(edges, edges)
 S2_ss_tr = mcp.transform_ND_to_1D(S2_ss)
 toc = time.time()-tic
-print("**SCF evaluation from MultComPy done! Elapsed time is {:.4f} seconds."
-      .format(toc))
+print(f"**SCF evaluation from MultComPy done! Elapsed time is {toc:.4f} seconds.")
 
 # graphical representation of the results
 ax = image_init()
@@ -152,8 +149,7 @@ tic = time.time()
 C2 = mcp.C2_Discrete_Fourier_transform(img_array)
 C2_tr = mcp.transform_ND_to_1D(C2, scale=False)
 toc = time.time() - tic
-print("**C2 evaluation from MultComPy done! Elapsed time is {:.4f} seconds."
-      .format(toc))
+print(f"**C2 evaluation from MultComPy done! Elapsed time is {toc:.4f} seconds.")
 
 # graphical representation of the results
 ax = image_init()
@@ -169,18 +165,18 @@ image_final()
 
 tic = time.time()
 ssa_sa = mcp.real_surface_stereological_approach(img_array)
-print('''Real surface area by stereological approach: {:.4f}. Elapsed \
-time is {:.4f} seconds.'''.format(ssa_sa, time.time()-tic))
+print(f"Real surface area by stereological approach: {ssa_sa:.4f}. Elapsed \
+time is {time.time()-tic:.4f} seconds.")
 
 tic = time.time()
 ssa_e = mcp.real_surface_extrapolation(img_array)
-print('''Real surface area by iterative approach is {:.4f}. Elapsed time\
-is {:.4f} seconds.'''.format(ssa_e, time.time()-tic))
+print(f"Real surface area by iterative approach is {ssa_e:.4f}. Elapsed time\
+is {time.time()-tic:.4f} seconds.")
 
 tic = time.time()
 ssa_e2 = mcp.real_surface_differentiation_S2(img_array)
-print('''Real surface area by differentiation of S2 approach is {:.4f}. \
-Elapsed time is {:.4f} seconds.'''.format(ssa_e2, time.time()-tic))
+print(f"Real surface area by differentiation of S2 approach is {ssa_e2:.4f}. \
+Elapsed time is {time.time()-tic:.4f} seconds.")
 
 print("**Real surface area evaluation from from MultComPy.py done!")
 
@@ -199,7 +195,7 @@ L2_1 = mcp.L2_direct_computation(img_array, (newrow, newcol), step=1,
                                   method="py")
 L2_tr1 = mcp.transform_ND_to_1D(L2_1, rmax=newrow)
 toc = time.time()-tic
-print("**L2 evaluation from MultComPy.py done! eval. time = {}".format(toc))
+print(f"**L2 evaluation from MultComPy.py done! eval. time = {toc:.4f}")
 
 # print("Computing L2 from lineal_path_c.dll ....")
 # tic = time.time()
@@ -234,7 +230,7 @@ print("Computing Chord length density function from MultComPy.py ....")
 tic = time.time()
 CLD_ortho = mcp.chordLengthDensityFunction_orthogonal(img_array,phase=True)
 toc = time.time()-tic
-print("Computing Chord length density function from MultComPy.py done! Eval. time = {}".format(toc))
+print(f"Computing Chord length density function from MultComPy.py done! Eval. time = {toc:.4f}")
 
 fig, ax = plt.subplots()
 ax.set_axisbelow(True)

@@ -38,7 +38,7 @@ img_array = np.array(img_file_BW)
 phase = True
 
 S1 = np.sum(img_array)/np.prod(np.array(img_array.shape))
-print("Volume fraction of phase {} is {:.4f}.".format(phase, S1))
+print(f"Volume fraction of phase {phase} is {S1:.4f}.")
 
 
 # =============================================================================
@@ -95,32 +95,28 @@ tic = time.time()
 C2 = mcp.C2_Discrete_Fourier_transform(img_array)
 C2_tr1 = mcp.transform_ND_to_1D(C2, scale=False)
 toc = time.time() - tic
-print("**C2 evaluation from MultComPy done! Elapsed time is {:.4f} seconds."
-      .format(toc))
+print(f"**C2 evaluation from MultComPy done! Elapsed time is {toc:.4f} seconds.")
 
 print("Computing C2 from MultComPy.py, original code....")
 tic = time.time()
 C2 = mcp.C2_Discrete_Fourier_transform(img_array, version=1)
 C2_tr2 = mcp.transform_ND_to_1D(C2, scale=False)
 toc = time.time() - tic
-print("**C2 evaluation from MultComPy done! Elapsed time is {:.4f} seconds."
-      .format(toc))
+print(f"**C2 evaluation from MultComPy done! Elapsed time is {toc:.4f} seconds.")
 
 print("Computing C2 from MultComPy.py, original code....")
 tic = time.time()
 C2 = mcp.C2_Discrete_Fourier_transform(img_array, version=2)
 C2_tr3 = mcp.transform_ND_to_1D(C2, scale=False)
 toc = time.time() - tic
-print("**C2 evaluation from MultComPy done! Elapsed time is {:.4f} seconds."
-      .format(toc))
+print(f"**C2 evaluation from MultComPy done! Elapsed time is {toc:.4f} seconds.")
 
 print("Computing C2 from MultComPy.py, original code....")
 tic = time.time()
 C2 = mcp.C2_Discrete_Fourier_transform(img_array, version=3)
 C2_tr4 = mcp.transform_ND_to_1D(C2, scale=False)
 toc = time.time() - tic
-print("**C2 evaluation from MultComPy done! Elapsed time is {:.4f} seconds."
-      .format(toc))
+print(f"**C2 evaluation from MultComPy done! Elapsed time is {toc:.4f} seconds.")
 
 # graphical representation of the results
 ax = image_init()

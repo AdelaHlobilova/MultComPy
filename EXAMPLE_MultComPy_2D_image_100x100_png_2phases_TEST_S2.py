@@ -17,7 +17,6 @@ from PIL import Image, ImageFilter
 import matplotlib.pyplot as plt
 import sys
 
-
 img_name = "2DcemPaste_clinkerVol_0.05_size_100x100.0.img.png"
 
 # =============================================================================
@@ -38,7 +37,7 @@ img_array = np.array(img_file_BW)
 phase = True
 
 S1 = np.sum(img_array)/np.prod(np.array(img_array.shape))
-print("Volume fraction of phase {} is {:.4f}.".format(phase, S1))
+print(f"Volume fraction of phase {phase} is {S1:.4f}.")
 
 
 # =============================================================================
@@ -99,8 +98,7 @@ S2 = mcp.S2_Discrete_Fourier_transform(img_array, img_array)
 
 S2_tr = mcp.transform_ND_to_1D(S2, rmax=int(len(img_array)/2))
 toc = time.time() - tic
-print("**S2 evaluation from MultComPy done! Elapsed time is {:.4f} seconds."
-      .format(toc))
+print(f"**S2 evaluation from MultComPy done! Elapsed time is {toc:.4f} seconds.")
 
 print("Computing S2 from MultComPy.py v2 (np fftn switch)....")
 tic = time.time()
@@ -108,8 +106,7 @@ S2 = mcp.S2_Discrete_Fourier_transform(img_array, version=1)
 
 S2_tr2 = mcp.transform_ND_to_1D(S2, rmax=int(len(img_array)/2))
 toc = time.time() - tic
-print("**S2 evaluation from MultComPy done! Elapsed time is {:.4f} seconds."
-      .format(toc))
+print(f"**S2 evaluation from MultComPy done! Elapsed time is {toc:.4f} seconds.")
 
 print("Computing S2 from MultComPy.py v2 (scipy fftn switch)....")
 tic = time.time()
@@ -117,8 +114,7 @@ S2 = mcp.S2_Discrete_Fourier_transform(img_array, version=2)
 
 S2_tr3 = mcp.transform_ND_to_1D(S2, rmax=int(len(img_array)/2))
 toc = time.time() - tic
-print("**S2 evaluation from MultComPy done! Elapsed time is {:.4f} seconds."
-      .format(toc))
+print(f"**S2 evaluation from MultComPy done! Elapsed time is {toc:.4f} seconds.")
 
 print("Computing S2 from MultComPy.py v3 (scipy fftn switch, shorter code)....")
 tic = time.time()
@@ -126,8 +122,7 @@ S2 = mcp.S2_Discrete_Fourier_transform(img_array, version=3)
 
 S2_tr4 = mcp.transform_ND_to_1D(S2, rmax=int(len(img_array)/2))
 toc = time.time() - tic
-print("**S2 evaluation from MultComPy done! Elapsed time is {:.4f} seconds."
-      .format(toc))
+print(f"**S2 evaluation from MultComPy done! Elapsed time is {toc:.4f} seconds.")
 
 #  graphical representation of the results
 ax = image_init()
@@ -143,4 +138,4 @@ ax.plot(S2_tr4[1], S2_tr4[0], '-o', color='b',
 image_final()
 
 
-print("**imageProcess_new.py done!")
+print(f"**imageProcess_new.py done!")

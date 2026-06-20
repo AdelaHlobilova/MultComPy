@@ -51,7 +51,6 @@ Helper functions:
 """
 
 from PIL import Image
-from PIL.IcnsImagePlugin import im
 import numpy as np
 import time
 import scipy.ndimage as spim
@@ -325,7 +324,7 @@ def S2_Discrete_Fourier_transform(img_array1, img_array2=None, larger=True, vers
     
         test = np.max(np.max(np.imag(E)))
         if test > 0.01:
-            print("warning: max. abs. value of imag. part in FFTN is :", test)
+            print(f"warning: max. abs. value of imag. part in FFTN is : {test}")
     
         E = np.real(E)
         S2_ND = np.real((np.fft.ifftn(E)) / cum)
@@ -348,7 +347,7 @@ def S2_Discrete_Fourier_transform(img_array1, img_array2=None, larger=True, vers
        
         test = np.max(np.max(np.imag(E)))
         if test > 0.01:
-            print("warning: max. abs. value of imag. part in FFTN is :", test)
+            print(f"warning: max. abs. value of imag. part in FFTN is : {test}")
     
         E = np.real(E)
         S2_ND = np.real((sp_ft.irfftn(E)) / cum)   
@@ -1793,7 +1792,7 @@ def shortest_distance_from_hydrate_to_clinker_surface(
 
     min_dists = np.zeros(num_hydrates)
 
-    print("Computing {} iterations \n".format(num_batches))
+    print(f"Computing {num_batches} iterations \n")
 
     # splitting the evaluation to num_batches steps because of the computer
     # memory
@@ -2046,7 +2045,7 @@ def particle_quantification(A, all_methods=False, printPhaseVals=False):
 
     out = np.zeros((num_particles, 6))
 
-    print("total number of particles: {}".format(num_particles))
+    print(f"total number of particles: {num_particles}")
 
     # scan all particles and omit any particle with contact with medium edges
     for i in range(num_particles):
@@ -2082,12 +2081,10 @@ def particle_quantification(A, all_methods=False, printPhaseVals=False):
         if printPhaseVals:
             if all_methods == True:
                 print(
-                    "{} {} {} {} {} {}".format(
-                        out[i, 0], out[i, 1], out[i, 2], out[i, 3], out[i, 4], out[i, 5]
-                    )
+                    f"{out[i, 0]} {out[i, 1]} {out[i, 2]} {out[i, 3]} {out[i, 4]} {out[i, 5]}"
                 )
             else:
-                print("{} {} {} {}".format(out[i, 0], out[i, 2], out[i, 4], out[i, 5]))
+                print(f"{out[i, 0]} {out[i, 2]} {out[i, 4]} {out[i, 5]}")
 
     if all_methods == False:
         out = np.delete(out, [1, 3], axis=1)
@@ -2202,7 +2199,7 @@ def export2gnuplot(
     file1.write("##########################################################\n")
     np.savetxt(file1, np.column_stack(storeArrays), fmt=colFormat, delimiter="\t")
     file1.close()
-    print('\n-> Data saved to file: "' + fullName + '"<-')
+    print(f'\n-> Data saved to file: "{fullName}"<-')
 
     return 0
 
